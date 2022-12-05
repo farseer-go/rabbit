@@ -8,7 +8,7 @@ import (
 
 type Connect struct {
 	Conn    *amqp.Connection
-	Channel *amqp.Channel
+	Channel *channel
 }
 
 // New 创建连接
@@ -27,7 +27,8 @@ func New(rabbitName string) *Connect {
 	if err != nil {
 		panic(err)
 	}
-	connect.Channel = ch
+	defer ch.Close()
+	connect.Channel.ch = ch
 	connect.Conn = conn
 	return &connect
 }
