@@ -2,7 +2,6 @@ package rabbit
 
 import (
 	"github.com/streadway/amqp"
-	"time"
 )
 
 type channel struct {
@@ -15,33 +14,22 @@ type channel struct {
 	Args       map[string]interface{}
 }
 
-type Publishing struct {
-	Headers         map[string]interface{}
-	ContentType     string    // MIME content type
-	ContentEncoding string    // MIME content encoding
-	DeliveryMode    uint8     // Transient (0 or 1) or Persistent (2)
-	Priority        uint8     // 0 to 9
-	CorrelationId   string    // correlation identifier
-	ReplyTo         string    // address to to reply to (ex: RPC)
-	Expiration      string    // message expiration spec
-	MessageId       string    // message identifier
-	Timestamp       time.Time // message timestamp
-	Type            string    // message type name
-	UserId          string    // creating user id - ex: "guest"
-	AppId           string    // creating application id
-	// The application specific payload of the message
-	Body []byte
-}
-
-type publishParams struct {
+type PublishParams struct {
 	Exchange  string
 	Key       string
 	Mandatory bool
 	Immediate bool
-	Msg       Publishing
+	Msg       amqp.Publishing
 }
 
-// Publish
-func (c *channel) Publish(params publishParams) {
-
+// Publish 发布
+func (c *channel) Publish(params PublishParams) error {
+	err := c.ch.Publish(
+		params.Exchange,  // exchange
+		params.Key,       // routing key
+		params.Mandatory, // mandatory
+		params.Immediate, // immediate
+		params.Msg,
+	)
+	return err
 }

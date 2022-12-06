@@ -27,8 +27,10 @@ func New(rabbitName string) *Connect {
 	if err != nil {
 		panic(err)
 	}
-	defer ch.Close()
-	connect.Channel.ch = ch
 	connect.Conn = conn
+	var c channel = channel{
+		ch: ch,
+	}
+	connect.Channel = &c
 	return &connect
 }
