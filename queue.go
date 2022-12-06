@@ -6,7 +6,7 @@ type Queue struct {
 	Consumers int    // number of consumers receiving deliveries
 }
 
-type queueDeclareParam struct {
+type QueueDeclareParam struct {
 	Name       string                 `default:""`
 	Durable    bool                   `default:false`
 	AutoDelete bool                   `default:false`
@@ -15,7 +15,7 @@ type queueDeclareParam struct {
 	Args       map[string]interface{} `default:nil`
 }
 
-func (c *channel) QueueDeclare(pam queueDeclareParam) (Queue, error) {
+func (c *channel) QueueDeclare(pam QueueDeclareParam) (Queue, error) {
 	q, err := c.ch.QueueDeclare(pam.Name, pam.Durable, pam.AutoDelete, pam.Exclusive, pam.NoWait, pam.Args)
 	if err != nil {
 		return Queue{}, err
