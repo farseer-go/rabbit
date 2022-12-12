@@ -6,6 +6,7 @@ import (
 	"strconv"
 )
 
+// Connect 连接结构体
 type Connect struct {
 	Conn    *amqp.Connection
 	Channel *channel
