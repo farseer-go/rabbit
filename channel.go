@@ -48,3 +48,28 @@ func (c *channel) QueueDeclare(pam QueueDeclareParam) (Queue, error) {
 	queue.Consumers = q.Consumers
 	return queue, err
 }
+
+// Ack 设置确认机制
+func (c *channel) Ack(tag uint64, multiple bool) error {
+	return c.ch.Ack(tag, multiple)
+}
+
+// Cancel 取消消息传递
+func (c *channel) Cancel(consumer string, noWait bool) error {
+	return c.ch.Cancel(consumer, noWait)
+}
+
+// Close 关闭通道
+func (c *channel) Close() error {
+	return c.ch.Close()
+}
+
+// Confirm 模式
+func (c *channel) Confirm(noWait bool) error {
+	return c.ch.Confirm(noWait)
+}
+
+// Consume 消费者
+func (c *channel) Consume(queue, consumer string, autoAck, exclusive, noLocal, noWait bool, args map[string]interface{}) (<-chan amqp.Delivery, error) {
+	return c.ch.Consume(queue, consumer, autoAck, exclusive, noLocal, noWait, args)
+}
