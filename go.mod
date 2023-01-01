@@ -3,7 +3,7 @@ module github.com/farseer-go/rabbit
 go 1.19
 
 require (
-	github.com/farseer-go/fs v0.5.0
+	github.com/farseer-go/fs v0.5.1-0.20230101111313-3216f37fdc4b
 	github.com/streadway/amqp v1.0.0
 )
 
