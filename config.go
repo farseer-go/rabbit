@@ -1,7 +1,7 @@
 package rabbit
 
 // rabbitConfig 配置项
-type rabbitConfig struct {
+type rabbitConfig2 struct {
 	Host     string
 	Username string
 	Password string

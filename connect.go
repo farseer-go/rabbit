@@ -3,7 +3,6 @@ package rabbit
 import (
 	"github.com/farseer-go/fs/configure"
 	"github.com/streadway/amqp"
-	"strconv"
 )
 
 // Connect 连接结构体
@@ -19,7 +18,7 @@ func New(rabbitName string) *Connect {
 		panic("[farseer.yaml]找不到相应的配置：Rabbit." + rabbitName)
 	}
 	rabbitConfig := configure.ParseConfig[rabbitConfig](configString)
-	conn, err := amqp.Dial(rabbitConfig.Protocol + "://" + rabbitConfig.Username + ":" + rabbitConfig.Password + "@" + rabbitConfig.Host + ":" + strconv.Itoa(rabbitConfig.Port) + "")
+	conn, err := amqp.Dial("Protocol://" + rabbitConfig.Server.UserName + ":" + rabbitConfig.Server.Password + "@" + rabbitConfig.Server.Server)
 	if err != nil {
 		panic(err)
 	}
