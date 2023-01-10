@@ -24,6 +24,12 @@ func (module Module) Initialize() {
 			_ = flog.Error("Rabbit配置缺少Server节点")
 			continue
 		}
+		if rabbitConfig.Server.MaxChannelCount == 0 {
+			rabbitConfig.Server.MaxChannelCount = 2048
+		}
+		if rabbitConfig.Server.MinChannelCount == 0 {
+			rabbitConfig.Server.MinChannelCount = 10
+		}
 
 		// 遍历交换器
 		for _, exchange := range rabbitConfig.Exchange {

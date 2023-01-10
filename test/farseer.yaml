@@ -7,8 +7,8 @@ Redis:
 Rabbit:
   - Server: "Server=rabbit:5672,UserName=steden,Password=steden"
     Exchange:
-      - "ExchangeName=Ex1,RoutingKey=,ExchangeType=fanout,UseConfirmModel=false,AutoCreateExchange=true"
-      - "ExchangeName=Ex2,RoutingKey=,ExchangeType=fanout,UseConfirmModel=false,AutoCreateExchange=true"
+      - "ExchangeName=Ex1,RoutingKey=,ExchangeType=fanout,IsDurable=true,UseConfirmModel=true,AutoCreateExchange=true"
+      - "ExchangeName=Ex2,RoutingKey=,ExchangeType=fanout,IsDurable=true,UseConfirmModel=true,AutoCreateExchange=true"
 FSS:
   Server: "http://127.0.0.1:888"
   ReservedTaskCount: 20
