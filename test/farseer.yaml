@@ -5,7 +5,7 @@ Redis:
   #default: "Server=127.0.0.1:6379,DB=15,Password=,ConnectTimeout=600000,SyncTimeout=10000,ResponseTimeout=10000"
     #Ex1: "ExchangeName=Ex1,RoutingKey=,ExchangeType=fanout,UseConfirmModel=false,AutoCreateExchange=true"
 Rabbit:
-  - Server: "Server=rabbit1:5672,UserName=farseer,Password=farseer,MinChannelCount=10,MaxChannelCount=100"
+  - Server: "Server=rabbit:5672,UserName=farseer,Password=farseer,MinChannelCount=10,MaxChannelCount=100"
     Exchange:
       - "ExchangeName=Ex1,RoutingKey=,ExchangeType=fanout,IsDurable=true,UseConfirmModel=true,AutoCreateExchange=true"
       - "ExchangeName=Ex2,RoutingKey=,ExchangeType=fanout,IsDurable=true,UseConfirmModel=true,AutoCreateExchange=true"
