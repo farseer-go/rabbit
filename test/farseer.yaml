@@ -7,7 +7,8 @@ Rabbit:
   - Server: "Server=127.0.0.1:5672,UserName=farseer,Password=farseer,MinChannelCount=10,MaxChannelCount=100"
     Exchange:
       - "ExchangeName=Ex1,RoutingKey=,ExchangeType=fanout,IsDurable=true,UseConfirmModel=true,AutoCreateExchange=true"
-      - "ExchangeName=Ex2,RoutingKey=,ExchangeType=fanout,IsDurable=true,UseConfirmModel=true,AutoCreateExchange=true"
+      - "ExchangeName=Ex2,RoutingKey=,ExchangeType=direct,IsDurable=true,UseConfirmModel=true,AutoCreateExchange=true"
+      - "ExchangeName=Ex3,RoutingKey=,ExchangeType=fanout,IsDurable=true,UseConfirmModel=false,AutoCreateExchange=true"
 FSS:
   Server: "http://127.0.0.1:888"
   ReservedTaskCount: 20

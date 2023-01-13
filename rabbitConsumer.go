@@ -86,16 +86,16 @@ func (receiver rabbitConsumer) SubscribeBatchAck(queueName string, routingKey st
 			lst, lastPage := receiver.pullBatch(queueName, false, pullCount, chl)
 			if lst.Count() > 0 {
 				if consumerHandle(lst) {
-					if err := lastPage.Ack(false); err != nil {
+					if err := lastPage.Ack(true); err != nil {
 						_ = flog.Errorf("Failed to Ack %s: %s", queueName, err)
 					}
 				} else {
-					if err := lastPage.Nack(false, true); err != nil {
+					if err := lastPage.Nack(true, true); err != nil {
 						_ = flog.Errorf("Failed to Nack %s: %s", queueName, err)
 					}
 				}
 			}
-			time.Sleep(500 * time.Millisecond)
+			time.Sleep(100 * time.Millisecond)
 		}
 	}()
 }
