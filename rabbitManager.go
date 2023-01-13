@@ -7,6 +7,7 @@ import (
 	"sync"
 )
 
+// rabbit客户端管理，可以对raabit做交换器创建、队列创建，以及绑定操作。
 type rabbitManager struct {
 	server   serverConfig
 	exchange exchangeConfig
@@ -14,6 +15,7 @@ type rabbitManager struct {
 	lock     *sync.Mutex
 }
 
+// 创建实例
 func newManager(server serverConfig, exchange exchangeConfig) *rabbitManager {
 	return &rabbitManager{
 		server:   server,

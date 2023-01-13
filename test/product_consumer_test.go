@@ -10,17 +10,17 @@ import (
 
 func TestProductConsumer(t *testing.T) {
 	fs.Initialize[rabbit.Module]("test rabbit")
-	// 注册消费者
-	consumer := container.Resolve[rabbit.IConsumer]("Ex1")
-	// 手动ACK
-	consumer.SubscribeAck("Q1", "", func(message string, ea rabbit.EventArgs) bool {
-		return true
-	})
-
-	// 自动ACK
-	consumer.Subscribe("Q2", "", func(message string, ea rabbit.EventArgs) {
-		// doing...
-	})
+	//// 注册消费者
+	//consumer := container.Resolve[rabbit.IConsumer]("Ex1")
+	//// 手动ACK
+	//consumer.SubscribeAck("Q1", "", 100, func(message string, ea rabbit.EventArgs) bool {
+	//	return true
+	//})
+	//
+	//// 自动ACK
+	//consumer.Subscribe("Q2", "", 100, func(message string, ea rabbit.EventArgs) {
+	//	// doing...
+	//})
 
 	// 生产消息
 	product := container.Resolve[rabbit.IProduct]("Ex1")

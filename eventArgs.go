@@ -9,6 +9,7 @@ type EventArgs struct {
 	Exchange        string
 	RoutingKey      string
 	Body            []byte
+	BodyString      string
 	Headers         map[string]any // Application or header exchange table
 	ContentType     string         // MIME content type
 	ContentEncoding string         // MIME content encoding
