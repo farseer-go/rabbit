@@ -18,6 +18,13 @@ func TestBatch(t *testing.T) {
 	C2 := 0
 	// 注册消费者
 	consumer := container.Resolve[rabbit.IConsumer]("Ex3")
+	assert.Panics(t, func() {
+		consumer.SubscribeBatchAck("", "", -1, func(messages collections.List[rabbit.EventArgs]) bool { return true })
+	})
+	assert.Panics(t, func() {
+		consumer.SubscribeBatch("", "", 0, func(messages collections.List[rabbit.EventArgs]) {})
+	})
+
 	// 手动ACK
 	consumer.SubscribeBatchAck("TestBatchStringAck", "Test_Batch_String_Ack", 100, func(messages collections.List[rabbit.EventArgs]) bool {
 		for _, args := range messages.ToArray() {
@@ -42,4 +49,5 @@ func TestBatch(t *testing.T) {
 	time.Sleep(2000 * time.Millisecond)
 	assert.Equal(t, 67, C1)
 	assert.Equal(t, 67, C2)
+	rabbit.Module{}.Shutdown()
 }
