@@ -46,9 +46,11 @@ func (receiver *rabbitProduct) popChannel() rabbitChannel {
 		receiver.init()
 	}
 
+	timer := time.NewTimer(10 * time.Millisecond)
 	for {
+		timer.Reset(10 * time.Millisecond)
 		select {
-		case <-time.After(10 * time.Millisecond):
+		case <-timer.C:
 			if receiver.workChannelCount >= receiver.manager.server.MaxChannelCount {
 				continue
 			}
