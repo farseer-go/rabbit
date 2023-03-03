@@ -34,7 +34,7 @@ func (module Module) Initialize() {
 		// 遍历交换器
 		for _, exchange := range rabbitConfig.Exchange {
 			if exchange.ExchangeName == "" {
-				_ = flog.Error("Rabbit配置：%s 缺少ExchangeName", rabbitConfig.Server.Server)
+				_ = flog.Errorf("Rabbit配置：%s 缺少ExchangeName", rabbitConfig.Server.Server)
 				continue
 			}
 
