@@ -2,7 +2,6 @@ package test
 
 import (
 	"encoding/json"
-	"github.com/farseer-go/fs"
 	"github.com/farseer-go/fs/container"
 	"github.com/farseer-go/rabbit"
 	"github.com/stretchr/testify/assert"
@@ -11,7 +10,6 @@ import (
 )
 
 func TestSendJson(t *testing.T) {
-	fs.Initialize[rabbit.Module]("test rabbit")
 	// 注册消费者
 	consumer := container.Resolve[rabbit.IConsumer]("Ex2")
 	// 手动ACK

@@ -2,9 +2,8 @@ Database:
   default: "DataType=mysql,PoolMaxSize=50,PoolMinSize=1,ConnectionString=root:steden@123@tcp(192.168.1.8:3306)/fSchedule_demo?charset=utf8&parseTime=True&loc=Local"
 Redis:
   default: "Server=192.168.1.8:6379,DB=15,Password=steden@123,ConnectTimeout=600000,SyncTimeout=10000,ResponseTimeout=10000"
-  #default: "Server=127.0.0.1:6379,DB=15,Password=,ConnectTimeout=600000,SyncTimeout=10000,ResponseTimeout=10000"
 Rabbit:
-  - Server: "Server=127.0.0.1:5672,UserName=farseer,Password=farseer,MinChannelCount=0,MaxChannelCount=0"
+  - Server: "Server=192.168.1.8:5672,UserName=farseer,Password=farseer,MinChannelCount=0,MaxChannelCount=0"
     Exchange:
       - "ExchangeName=Ex1,RoutingKey=,ExchangeType=fanout,IsDurable=true,UseConfirmModel=true,AutoCreateExchange=true"
       - "ExchangeName=Ex2,RoutingKey=,ExchangeType=direct,IsDurable=true,UseConfirmModel=true,AutoCreateExchange=true"
@@ -12,7 +11,7 @@ Rabbit:
       - "ExchangeName=,RoutingKey=,ExchangeType=fanout,IsDurable=true,UseConfirmModel=false,AutoCreateExchange=true"
   - Server: ""
 FSchedule:
-  Server: "http://127.0.0.1:888"
+  Server: "http://192.168.1.8:888"
   ReservedTaskCount: 20
   PullCount: 6
   WorkCount: 20

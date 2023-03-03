@@ -2,7 +2,6 @@ package test
 
 import (
 	"github.com/farseer-go/collections"
-	"github.com/farseer-go/fs"
 	"github.com/farseer-go/fs/container"
 	"github.com/farseer-go/fs/parse"
 	"github.com/farseer-go/rabbit"
@@ -13,7 +12,6 @@ import (
 )
 
 func TestBatch(t *testing.T) {
-	fs.Initialize[rabbit.Module]("test rabbit")
 	C1 := 0
 	C2 := 0
 	// 注册消费者
