@@ -14,9 +14,6 @@ func (module Module) DependsModule() []modules.FarseerModule {
 	return nil
 }
 
-func (module Module) PreInitialize() {
-}
-
 func (module Module) Initialize() {
 	rabbitConfigs := configure.ParseConfigs[rabbitConfig]("Rabbit")
 	for _, rabbitConfig := range rabbitConfigs {
@@ -47,10 +44,4 @@ func (module Module) Initialize() {
 			container.RegisterInstance[IConsumer](consumerIns, exchange.ExchangeName)
 		}
 	}
-}
-
-func (module Module) PostInitialize() {
-}
-
-func (module Module) Shutdown() {
 }
