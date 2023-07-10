@@ -104,7 +104,7 @@ func (receiver rabbitConsumer) SubscribeBatch(queueName string, routingKey strin
 	if pullCount < 1 {
 		flog.Panicf("The parameter pullCount must be greater than 0， %s: %d", queueName, pullCount)
 	}
-	
+
 	chl := receiver.manager.CreateChannel()
 	receiver.manager.CreateQueue(chl, queueName, receiver.manager.exchange.IsDurable, receiver.manager.exchange.AutoDelete, nil)
 	receiver.manager.BindQueue(chl, queueName, routingKey, receiver.manager.exchange.ExchangeName, nil)
