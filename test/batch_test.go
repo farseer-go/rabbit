@@ -47,5 +47,4 @@ func TestBatch(t *testing.T) {
 	time.Sleep(2000 * time.Millisecond)
 	assert.Equal(t, 67, C1)
 	assert.Equal(t, 67, C2)
-	rabbit.Module{}.Shutdown()
 }
