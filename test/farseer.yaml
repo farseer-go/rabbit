@@ -1,7 +1,3 @@
-Database:
-  default: "DataType=mysql,PoolMaxSize=50,PoolMinSize=1,ConnectionString=root:steden@123@tcp(192.168.1.8:3306)/fSchedule_demo?charset=utf8&parseTime=True&loc=Local"
-Redis:
-  default: "Server=192.168.1.8:6379,DB=15,Password=steden@123,ConnectTimeout=600000,SyncTimeout=10000,ResponseTimeout=10000"
 Rabbit:
   - Server: "Server=192.168.1.8:5672,UserName=farseer,Password=farseer,MinChannelCount=0,MaxChannelCount=0"
     Exchange:
@@ -9,17 +5,6 @@ Rabbit:
       - "ExchangeName=Ex2,RoutingKey=,ExchangeType=direct,IsDurable=true,UseConfirmModel=true,AutoCreateExchange=true"
       - "ExchangeName=Ex3,RoutingKey=,ExchangeType=fanout,IsDurable=true,UseConfirmModel=false,AutoCreateExchange=true"
       - "ExchangeName=,RoutingKey=,ExchangeType=fanout,IsDurable=true,UseConfirmModel=false,AutoCreateExchange=true"
-  - Server: ""
-FSchedule:
-  Server: "http://192.168.1.8:888"
-  ReservedTaskCount: 20
-  PullCount: 6
-  WorkCount: 20
-ElasticSearch:
-  es: "Server=http://192.168.1.8:9200,Username=es,Password=123456,ReplicasCount=1,ShardsCount=1,RefreshInterval=5,IndexFormat=yyyy_MM"
-  LinkTrack: "Server=http://192.168.1.8:9200,Username=es,Password=123456"
-WebApi:
-  Url: ":888"
 Log:
   LogLevel: "Information"
   Component:
