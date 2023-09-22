@@ -11,78 +11,112 @@ type rabbitConsumer struct {
 	manager *rabbitManager
 }
 
-func newConsumer(server serverConfig, exchange exchangeConfig) rabbitConsumer {
-	return rabbitConsumer{
+func newConsumer(server serverConfig, exchange exchangeConfig) *rabbitConsumer {
+	return &rabbitConsumer{
 		manager: newManager(server, exchange),
 	}
 }
 
-func (receiver rabbitConsumer) Subscribe(queueName string, routingKey string, prefetchCount int, consumerHandle func(message string, ea EventArgs)) {
+func (receiver *rabbitConsumer) createQueueAndBindAndConsume(queueName, routingKey string, prefetchCount int, autoAck bool) (*amqp.Channel, <-chan amqp.Delivery) {
+	// 创建一个连接和通道
 	chl := receiver.manager.CreateChannel()
 	receiver.manager.CreateQueue(chl, queueName, receiver.manager.exchange.IsDurable, receiver.manager.exchange.AutoDelete, nil)
 	receiver.manager.BindQueue(chl, queueName, routingKey, receiver.manager.exchange.ExchangeName, nil)
 
+	// 设置预读数量
 	err := chl.Qos(prefetchCount, 0, false)
 	if err != nil {
 		flog.Panicf("Failed to Qos %s: %s", queueName, err)
 	}
-	deliveries, err := chl.Consume(queueName, "", true, false, false, false, nil)
+
+	// 订阅消息
+	deliveries, err := chl.Consume(queueName, "", autoAck, false, false, false, nil)
 	if err != nil {
 		flog.Panicf("Failed to Subscribe %s: %s", queueName, err)
 	}
+	return chl, deliveries
+}
+
+func (receiver *rabbitConsumer) Subscribe(queueName string, routingKey string, prefetchCount int, consumerHandle func(message string, ea EventArgs)) {
+	// 创建一个连接和通道
+	chl, deliveries := receiver.createQueueAndBindAndConsume(queueName, routingKey, prefetchCount, true)
 
 	go func(chl *amqp.Channel) {
+		// 读取通道的消息
 		for page := range deliveries {
 			args := receiver.createEventArgs(page)
 			consumerHandle(string(page.Body), args)
 		}
 		_ = chl.Close()
+		// 关闭后，重新调用自己
+		receiver.Subscribe(queueName, routingKey, prefetchCount, consumerHandle)
 	}(chl)
 }
 
-func (receiver rabbitConsumer) SubscribeAck(queueName string, routingKey string, prefetchCount int, consumerHandle func(message string, ea EventArgs) bool) {
-	chl := receiver.manager.CreateChannel()
-	receiver.manager.CreateQueue(chl, queueName, receiver.manager.exchange.IsDurable, receiver.manager.exchange.AutoDelete, nil)
-	receiver.manager.BindQueue(chl, queueName, routingKey, receiver.manager.exchange.ExchangeName, nil)
-
-	err := chl.Qos(prefetchCount, 0, false)
-	if err != nil {
-		flog.Panicf("Failed to Qos %s: %s", queueName, err)
-	}
-
-	deliveries, err := chl.Consume(queueName, "", false, false, false, false, nil)
-	if err != nil {
-		flog.Panicf("Failed to Subscribe %s: %s", queueName, err)
-	}
+func (receiver *rabbitConsumer) SubscribeAck(queueName string, routingKey string, prefetchCount int, consumerHandle func(message string, ea EventArgs) bool) {
+	// 创建一个连接和通道
+	chl, deliveries := receiver.createQueueAndBindAndConsume(queueName, routingKey, prefetchCount, false)
 
 	go func(chl *amqp.Channel) {
+		// 读取通道的消息
 		for page := range deliveries {
 			args := receiver.createEventArgs(page)
+			// Ack
 			if consumerHandle(string(page.Body), args) {
-				if err = page.Ack(false); err != nil {
+				if err := page.Ack(false); err != nil {
 					_ = flog.Errorf("Failed to Ack %s: %s %s", queueName, err, string(page.Body))
 				}
-			} else {
-				if err = page.Nack(false, true); err != nil {
+			} else { // Nack
+				if err := page.Nack(false, true); err != nil {
 					_ = flog.Errorf("Failed to Nack %s: %s %s", queueName, err, string(page.Body))
 				}
 			}
 		}
 		_ = chl.Close()
+		// 关闭后，重新调用自己
+		receiver.SubscribeAck(queueName, routingKey, prefetchCount, consumerHandle)
 	}(chl)
 }
 
-func (receiver rabbitConsumer) SubscribeBatchAck(queueName string, routingKey string, pullCount int, consumerHandle func(messages collections.List[EventArgs]) bool) {
+func (receiver *rabbitConsumer) SubscribeBatch(queueName string, routingKey string, pullCount int, consumerHandle func(messages collections.List[EventArgs])) {
 	if pullCount < 1 {
 		flog.Panicf("The parameter pullCount must be greater than 0， %s: %d", queueName, pullCount)
 	}
 
-	chl := receiver.manager.CreateChannel()
-	receiver.manager.CreateQueue(chl, queueName, receiver.manager.exchange.IsDurable, receiver.manager.exchange.AutoDelete, nil)
-	receiver.manager.BindQueue(chl, queueName, routingKey, receiver.manager.exchange.ExchangeName, nil)
+	go func() {
+		var chl *amqp.Channel
+		for {
+			if chl == nil || chl.IsClosed() {
+				// 创建一个连接和通道
+				chl = receiver.manager.CreateChannel()
+				receiver.manager.CreateQueue(chl, queueName, receiver.manager.exchange.IsDurable, receiver.manager.exchange.AutoDelete, nil)
+				receiver.manager.BindQueue(chl, queueName, routingKey, receiver.manager.exchange.ExchangeName, nil)
+			}
+
+			lst, _ := receiver.pullBatch(queueName, true, pullCount, chl)
+			if lst.Count() > 0 {
+				consumerHandle(lst)
+			}
+			time.Sleep(500 * time.Millisecond)
+		}
+	}()
+}
+
+func (receiver *rabbitConsumer) SubscribeBatchAck(queueName string, routingKey string, pullCount int, consumerHandle func(messages collections.List[EventArgs]) bool) {
+	if pullCount < 1 {
+		flog.Panicf("The parameter pullCount must be greater than 0， %s: %d", queueName, pullCount)
+	}
 
 	go func() {
+		var chl *amqp.Channel
 		for {
+			if chl == nil || chl.IsClosed() {
+				// 创建一个连接和通道
+				chl = receiver.manager.CreateChannel()
+				receiver.manager.CreateQueue(chl, queueName, receiver.manager.exchange.IsDurable, receiver.manager.exchange.AutoDelete, nil)
+				receiver.manager.BindQueue(chl, queueName, routingKey, receiver.manager.exchange.ExchangeName, nil)
+			}
+
 			lst, lastPage := receiver.pullBatch(queueName, false, pullCount, chl)
 			if lst.Count() > 0 {
 				if consumerHandle(lst) {
@@ -100,28 +134,8 @@ func (receiver rabbitConsumer) SubscribeBatchAck(queueName string, routingKey st
 	}()
 }
 
-func (receiver rabbitConsumer) SubscribeBatch(queueName string, routingKey string, pullCount int, consumerHandle func(messages collections.List[EventArgs])) {
-	if pullCount < 1 {
-		flog.Panicf("The parameter pullCount must be greater than 0， %s: %d", queueName, pullCount)
-	}
-
-	chl := receiver.manager.CreateChannel()
-	receiver.manager.CreateQueue(chl, queueName, receiver.manager.exchange.IsDurable, receiver.manager.exchange.AutoDelete, nil)
-	receiver.manager.BindQueue(chl, queueName, routingKey, receiver.manager.exchange.ExchangeName, nil)
-
-	go func() {
-		for {
-			lst, _ := receiver.pullBatch(queueName, true, pullCount, chl)
-			if lst.Count() > 0 {
-				consumerHandle(lst)
-			}
-			time.Sleep(500 * time.Millisecond)
-		}
-	}()
-}
-
 // 生成事件参数
-func (receiver rabbitConsumer) createEventArgs(page amqp.Delivery) EventArgs {
+func (receiver *rabbitConsumer) createEventArgs(page amqp.Delivery) EventArgs {
 	return EventArgs{
 		ConsumerTag:     page.ConsumerTag,
 		DeliveryTag:     page.DeliveryTag,
@@ -148,7 +162,7 @@ func (receiver rabbitConsumer) createEventArgs(page amqp.Delivery) EventArgs {
 }
 
 // 手动拉取数据
-func (receiver rabbitConsumer) pullBatch(queueName string, autoAck bool, pullCount int, chl *amqp.Channel) (collections.List[EventArgs], amqp.Delivery) {
+func (receiver *rabbitConsumer) pullBatch(queueName string, autoAck bool, pullCount int, chl *amqp.Channel) (collections.List[EventArgs], amqp.Delivery) {
 	lst := collections.NewList[EventArgs]()
 	var lastPage amqp.Delivery
 	for lst.Count() < pullCount {

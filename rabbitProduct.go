@@ -16,7 +16,7 @@ import (
 type rabbitProduct struct {
 	manager          *rabbitManager
 	deliveryMode     uint8
-	chlQueue         chan rabbitChannel // 通道队列，打开通道后，不关系，放回此队列
+	chlQueue         chan rabbitChannel // 通道队列，使用完后放回此队列
 	workChannelCount int32              // 正在使用的通道数量
 	lock             *sync.Mutex
 }
@@ -57,6 +57,10 @@ func (receiver *rabbitProduct) popChannel() rabbitChannel {
 			receiver.workChannelCount++
 			return receiver.createChannelAndConfirm()
 		case rabbitChl := <-receiver.chlQueue:
+			// 如果通道是关闭状态，则重新走取出逻辑
+			if rabbitChl.chl.IsClosed() {
+				continue
+			}
 			receiver.workChannelCount++
 			return rabbitChl
 		}
@@ -65,14 +69,14 @@ func (receiver *rabbitProduct) popChannel() rabbitChannel {
 
 func (receiver *rabbitProduct) init() {
 	// 首次使用
-	if receiver.chlQueue == nil {
-		receiver.chlQueue = make(chan rabbitChannel, 2048)
-		// 按最低channel要求，创建指定数量的channel
-		for len(receiver.chlQueue) < receiver.manager.server.MinChannelCount {
-			receiver.chlQueue <- receiver.createChannelAndConfirm()
-		}
+	receiver.workChannelCount = 0
+	receiver.chlQueue = make(chan rabbitChannel, 2048)
+	// 按最低channel要求，创建指定数量的channel
+	for len(receiver.chlQueue) < receiver.manager.server.MinChannelCount {
+		receiver.chlQueue <- receiver.createChannelAndConfirm()
 	}
 }
+
 func (receiver *rabbitProduct) createChannelAndConfirm() rabbitChannel {
 	chl := receiver.manager.CreateChannel()
 	return rabbitChannel{
@@ -81,7 +85,7 @@ func (receiver *rabbitProduct) createChannelAndConfirm() rabbitChannel {
 	}
 }
 
-// 创建通道
+// 通道使用完后，放回队列中
 func (receiver *rabbitProduct) pushChannel(rabbitChl rabbitChannel) {
 	defer atomic.AddInt32(&receiver.workChannelCount, -1)
 	receiver.chlQueue <- rabbitChl
@@ -120,6 +124,13 @@ func (receiver *rabbitProduct) SendMessage(message []byte, routingKey, messageId
 		receiver.pushChannel(rabbitChl)
 	}(rabbitChl)
 
+	// 如果关闭了，则重新init
+	if receiver.manager.conn.IsClosed() {
+		receiver.lock.Lock()
+		defer receiver.lock.Unlock()
+		receiver.init()
+	}
+
 	// 发布消息
 	err := rabbitChl.chl.PublishWithContext(context.Background(),
 		receiver.manager.exchange.ExchangeName, // exchange
@@ -134,7 +145,13 @@ func (receiver *rabbitProduct) SendMessage(message []byte, routingKey, messageId
 			AppId:        fs.AppName,
 			Body:         message,
 		})
+
 	if err != nil {
+		//if rabbitError, ok := err.(*amqp.Error); ok {
+		//	if rabbitError.Code == 504 {
+		//
+		//	}
+		//}
 		return flog.Errorf("Failed to Publish %s: %s", receiver.manager.server.Server, err)
 	}
 

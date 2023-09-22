@@ -32,7 +32,6 @@ func (receiver *rabbitManager) Open() {
 		if receiver.conn == nil || receiver.conn.IsClosed() {
 			var err error
 			receiver.conn, err = amqp.Dial(fmt.Sprintf("amqp://%s:%s@%s/", receiver.server.UserName, receiver.server.Password, receiver.server.Server))
-
 			if err != nil {
 				flog.Panicf("Failed to connect to RabbitMQ %s: %s", receiver.server.Server, err)
 			}
