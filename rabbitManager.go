@@ -25,7 +25,7 @@ func newManager(server serverConfig, exchange exchangeConfig) *rabbitManager {
 }
 
 // Open 连接服务端
-func (receiver *rabbitManager) Open() {
+func (receiver *rabbitManager) Open() error {
 	if receiver.conn == nil || receiver.conn.IsClosed() {
 		receiver.lock.Lock()
 		defer receiver.lock.Unlock()
@@ -33,11 +33,13 @@ func (receiver *rabbitManager) Open() {
 			var err error
 			receiver.conn, err = amqp.Dial(fmt.Sprintf("amqp://%s:%s@%s/", receiver.server.UserName, receiver.server.Password, receiver.server.Server))
 			if err != nil {
-				flog.Panicf("Failed to connect to RabbitMQ %s: %s", receiver.server.Server, err)
+				_ = flog.Errorf("Failed to connect to RabbitMQ %s: %s", receiver.server.Server, err)
+				return err
 			}
 			receiver.CreateExchange(receiver.exchange.ExchangeName, receiver.exchange.ExchangeType, receiver.exchange.IsDurable, receiver.exchange.AutoDelete, nil)
 		}
 	}
+	return nil
 }
 
 // CreateExchange 创建交换器
@@ -55,7 +57,10 @@ func (receiver *rabbitManager) CreateExchange(exchangeName, exchangeType string,
 
 // CreateChannel 创建通道
 func (receiver *rabbitManager) CreateChannel() *amqp.Channel {
-	receiver.Open()
+	err := receiver.Open()
+	if err != nil {
+		return nil
+	}
 	c, err := receiver.conn.Channel()
 	if err != nil {
 		flog.Panicf("Failed to Open a channel %s: %s", receiver.server.Server, err)

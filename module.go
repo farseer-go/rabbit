@@ -3,6 +3,7 @@ package rabbit
 import (
 	"github.com/farseer-go/fs/configure"
 	"github.com/farseer-go/fs/container"
+	"github.com/farseer-go/fs/core"
 	"github.com/farseer-go/fs/flog"
 	"github.com/farseer-go/fs/modules"
 )
@@ -43,5 +44,8 @@ func (module Module) Initialize() {
 			consumerIns := newConsumer(rabbitConfig.Server, exchange)
 			container.RegisterInstance[IConsumer](consumerIns, exchange.ExchangeName)
 		}
+
+		// 注册健康检查
+		container.RegisterInstance[core.IHealthCheck](&healthCheck{server: rabbitConfig.Server}, rabbitConfig.Server.Server)
 	}
 }
