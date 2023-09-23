@@ -48,6 +48,8 @@ func (receiver *rabbitConsumer) Subscribe(queueName string, routingKey string, p
 			args := receiver.createEventArgs(page)
 			exception.Try(func() {
 				consumerHandle(string(page.Body), args)
+			}).CatchException(func(exp any) {
+				_ = flog.Errorf("Subscribe exception:%s", exp)
 			})
 		}
 		_ = chl.Close()
@@ -72,6 +74,8 @@ func (receiver *rabbitConsumer) SubscribeAck(queueName string, routingKey string
 						_ = flog.Errorf("Failed to Ack %s: %s %s", queueName, err, string(page.Body))
 					}
 				}
+			}).CatchException(func(exp any) {
+				_ = flog.Errorf("SubscribeAck exception:%s", exp)
 			})
 			if !isSuccess {
 				// Nack
@@ -105,6 +109,8 @@ func (receiver *rabbitConsumer) SubscribeBatch(queueName string, routingKey stri
 			if lst.Count() > 0 {
 				exception.Try(func() {
 					consumerHandle(lst)
+				}).CatchException(func(exp any) {
+					_ = flog.Errorf("SubscribeBatch exception:%s", exp)
 				})
 			}
 			time.Sleep(500 * time.Millisecond)
@@ -137,6 +143,8 @@ func (receiver *rabbitConsumer) SubscribeBatchAck(queueName string, routingKey s
 							_ = flog.Errorf("Failed to Ack %s: %s", queueName, err)
 						}
 					}
+				}).CatchException(func(exp any) {
+					_ = flog.Errorf("SubscribeBatchAck exception:%s", exp)
 				})
 				if !isSuccess {
 					// Nack
