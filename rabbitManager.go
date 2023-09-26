@@ -9,18 +9,16 @@ import (
 
 // rabbit客户端管理，可以对raabit做交换器创建、队列创建，以及绑定操作。
 type rabbitManager struct {
-	server   serverConfig
-	exchange exchangeConfig
-	conn     *amqp.Connection
-	lock     *sync.Mutex
+	config rabbitConfig
+	conn   *amqp.Connection
+	lock   *sync.Mutex
 }
 
 // 创建实例
-func newManager(server serverConfig, exchange exchangeConfig) *rabbitManager {
+func newManager(config rabbitConfig) *rabbitManager {
 	return &rabbitManager{
-		server:   server,
-		exchange: exchange,
-		lock:     &sync.Mutex{},
+		config: config,
+		lock:   &sync.Mutex{},
 	}
 }
 
@@ -31,12 +29,12 @@ func (receiver *rabbitManager) Open() error {
 		defer receiver.lock.Unlock()
 		if receiver.conn == nil || receiver.conn.IsClosed() {
 			var err error
-			receiver.conn, err = amqp.Dial(fmt.Sprintf("amqp://%s:%s@%s/", receiver.server.UserName, receiver.server.Password, receiver.server.Server))
+			receiver.conn, err = amqp.Dial(fmt.Sprintf("amqp://%s:%s@%s/", receiver.config.UserName, receiver.config.Password, receiver.config.Server))
 			if err != nil {
-				_ = flog.Errorf("Failed to connect to RabbitMQ %s: %s", receiver.server.Server, err)
+				_ = flog.Errorf("Failed to connect to RabbitMQ %s: %s", receiver.config.Server, err)
 				return err
 			}
-			receiver.CreateExchange(receiver.exchange.ExchangeName, receiver.exchange.ExchangeType, receiver.exchange.IsDurable, receiver.exchange.AutoDelete, nil)
+			receiver.CreateExchange(receiver.config.Exchange, receiver.config.Type, receiver.config.IsDurable, receiver.config.AutoDelete, nil)
 		}
 	}
 	return nil
@@ -44,13 +42,13 @@ func (receiver *rabbitManager) Open() error {
 
 // CreateExchange 创建交换器
 func (receiver *rabbitManager) CreateExchange(exchangeName, exchangeType string, isDurable, autoDelete bool, args amqp.Table) {
-	if receiver.exchange.AutoCreateExchange {
+	if receiver.config.AutoCreate {
 		c, err := receiver.conn.Channel()
 		defer c.Close()
 
 		err = c.ExchangeDeclare(exchangeName, exchangeType, isDurable, autoDelete, false, false, args)
 		if err != nil {
-			flog.Panicf("Failed to Declare Exchange %s: %s", receiver.server.Server, err)
+			flog.Panicf("Failed to Declare Exchange %s: %s", receiver.config.Server, err)
 		}
 	}
 }
@@ -63,7 +61,7 @@ func (receiver *rabbitManager) CreateChannel() *amqp.Channel {
 	}
 	c, err := receiver.conn.Channel()
 	if err != nil {
-		flog.Panicf("Failed to Open a channel %s: %s", receiver.server.Server, err)
+		flog.Panicf("Failed to Open a channel %s: %s", receiver.config.Server, err)
 	}
 	return c
 }
@@ -72,7 +70,7 @@ func (receiver *rabbitManager) CreateChannel() *amqp.Channel {
 func (receiver *rabbitManager) CreateQueue(c *amqp.Channel, queueName string, isDurable, autoDelete bool, args amqp.Table) {
 	_, err := c.QueueDeclare(queueName, isDurable, autoDelete, false, false, args)
 	if err != nil {
-		flog.Panicf("Failed to Declare Exchange %s: %s", receiver.server.Server, err)
+		flog.Panicf("Failed to Declare Exchange %s: %s", receiver.config.Server, err)
 	}
 }
 
@@ -80,6 +78,6 @@ func (receiver *rabbitManager) CreateQueue(c *amqp.Channel, queueName string, is
 func (receiver *rabbitManager) BindQueue(c *amqp.Channel, queueName, routingKey, exchangeName string, args amqp.Table) {
 	err := c.QueueBind(queueName, routingKey, exchangeName, false, args)
 	if err != nil {
-		flog.Panicf("Failed to QueueBind %s: %s", receiver.server.Server, err)
+		flog.Panicf("Failed to QueueBind %s: %s", receiver.config.Server, err)
 	}
 }

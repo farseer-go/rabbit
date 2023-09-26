@@ -1,39 +1,38 @@
 package rabbit
 
 import (
+	"github.com/farseer-go/fs/configure"
 	"github.com/farseer-go/fs/container"
 	"github.com/farseer-go/fs/core"
 	"github.com/farseer-go/fs/flog"
 )
 
-func Register(config rabbitConfig) {
-	if config.Server.Server == "" {
+func Register(key string, configString string) {
+	config := configure.ParseString[rabbitConfig](configString)
+	if config.Server == "" {
 		_ = flog.Error("Rabbit配置缺少Server节点")
 		return
 	}
-	if config.Server.MaxChannelCount == 0 {
-		config.Server.MaxChannelCount = 2048
+	if config.MaxChannel == 0 {
+		config.MaxChannel = 2048
 	}
-	if config.Server.MinChannelCount == 0 {
-		config.Server.MinChannelCount = 10
+	if config.MinChannel == 0 {
+		config.MinChannel = 10
 	}
 
-	// 遍历交换器
-	for _, exchange := range config.Exchange {
-		if exchange.ExchangeName == "" {
-			_ = flog.Errorf("Rabbit配置：%s 缺少ExchangeName", config.Server.Server)
-			continue
-		}
-
-		// 注册生产者
-		productIns := newProduct(config.Server, exchange)
-		container.RegisterInstance[IProduct](productIns, exchange.ExchangeName)
-
-		// 注册消费者
-		consumerIns := newConsumer(config.Server, exchange)
-		container.RegisterInstance[IConsumer](consumerIns, exchange.ExchangeName)
+	if config.Exchange == "" {
+		_ = flog.Errorf("Rabbit配置：%s 缺少ExchangeName", config.Server)
+		return
 	}
+
+	// 注册生产者
+	productIns := newProduct(config)
+	container.RegisterInstance[IProduct](productIns, key)
+
+	// 注册消费者
+	consumerIns := newConsumer(config)
+	container.RegisterInstance[IConsumer](consumerIns, key)
 
 	// 注册健康检查
-	container.RegisterInstance[core.IHealthCheck](&healthCheck{server: config.Server}, config.Server.Server)
+	container.RegisterInstance[core.IHealthCheck](&healthCheck{name: key, config: config}, key)
 }

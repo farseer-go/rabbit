@@ -25,14 +25,14 @@ type rabbitChannel struct {
 	confirms chan amqp.Confirmation
 }
 
-func newProduct(server serverConfig, exchange exchangeConfig) *rabbitProduct {
+func newProduct(config rabbitConfig) *rabbitProduct {
 	var deliveryMode uint8
-	if exchange.IsDurable {
+	if config.IsDurable {
 		deliveryMode = 2
 	}
 	return &rabbitProduct{
 		deliveryMode: deliveryMode,
-		manager:      newManager(server, exchange),
+		manager:      newManager(config),
 		lock:         &sync.Mutex{},
 	}
 }
@@ -54,7 +54,7 @@ func (receiver *rabbitProduct) popChannel() rabbitChannel {
 		timer.Reset(10 * time.Millisecond)
 		select {
 		case <-timer.C:
-			if receiver.workChannelCount >= receiver.manager.server.MaxChannelCount {
+			if receiver.workChannelCount >= receiver.manager.config.MaxChannel {
 				continue
 			}
 			return receiver.createChannelAndConfirm()
@@ -73,7 +73,7 @@ func (receiver *rabbitProduct) init() {
 	receiver.workChannelCount = 0
 	receiver.chlQueue = make(chan rabbitChannel, 2048)
 	// 按最低channel要求，创建指定数量的channel
-	for len(receiver.chlQueue) < receiver.manager.server.MinChannelCount {
+	for len(receiver.chlQueue) < receiver.manager.config.MinChannel {
 		receiver.chlQueue <- receiver.createChannelAndConfirm()
 	}
 }
@@ -95,14 +95,14 @@ func (receiver *rabbitProduct) pushChannel(rabbitChl rabbitChannel) {
 // SendString 发送消息（使用配置设置）
 func (receiver *rabbitProduct) SendString(message string) error {
 	messageId := fmt.Sprintf("%x", md5.Sum([]byte(message)))
-	return receiver.SendMessage([]byte(message), receiver.manager.exchange.RoutingKey, messageId, 0)
+	return receiver.SendMessage([]byte(message), receiver.manager.config.RoutingKey, messageId, 0)
 }
 
 // SendJson 发送消息，将data序列化成json（使用配置设置）
 func (receiver *rabbitProduct) SendJson(data any) error {
 	message, _ := json.Marshal(data)
 	messageId := fmt.Sprintf("%x", md5.Sum(message))
-	return receiver.SendMessage(message, receiver.manager.exchange.RoutingKey, messageId, 0)
+	return receiver.SendMessage(message, receiver.manager.config.RoutingKey, messageId, 0)
 }
 
 // SendStringKey 发送消息（使用配置设置）
@@ -127,10 +127,10 @@ func (receiver *rabbitProduct) SendMessage(message []byte, routingKey, messageId
 
 	// 发布消息
 	err := rabbitChl.chl.PublishWithContext(context.Background(),
-		receiver.manager.exchange.ExchangeName, // exchange
-		routingKey,                             // routing key
-		false,                                  // mandatory
-		false,                                  // immediate
+		receiver.manager.config.Exchange, // exchange
+		routingKey,                       // routing key
+		false,                            // mandatory
+		false,                            // immediate
 		amqp.Publishing{
 			Headers:      nil,
 			DeliveryMode: receiver.deliveryMode,
@@ -146,13 +146,13 @@ func (receiver *rabbitProduct) SendMessage(message []byte, routingKey, messageId
 		//
 		//	}
 		//}
-		return flog.Errorf("Failed to Publish %s: %s", receiver.manager.server.Server, err)
+		return flog.Errorf("Failed to Publish %s: %s", receiver.manager.config.Server, err)
 	}
 
 	// 确认消息
 	if rabbitChl.confirms != nil {
 		if confirmed := <-rabbitChl.confirms; !confirmed.Ack {
-			return flog.Errorf("NoAck to Publish %s: %s", receiver.manager.server.Server, messageId)
+			return flog.Errorf("NoAck to Publish %s: %s", receiver.manager.config.Server, messageId)
 		}
 	}
 	return nil
@@ -161,10 +161,10 @@ func (receiver *rabbitProduct) SendMessage(message []byte, routingKey, messageId
 // 是否需要消息确认
 func (receiver *rabbitProduct) confirm(chl *amqp.Channel) chan amqp.Confirmation {
 	var confirms chan amqp.Confirmation
-	if receiver.manager.exchange.UseConfirmModel {
+	if receiver.manager.config.UseConfirm {
 		confirms = chl.NotifyPublish(make(chan amqp.Confirmation, 1))
 		if err := chl.Confirm(false); err != nil {
-			_ = flog.Errorf("Failed to Confirm %s: %s", receiver.manager.server.Server, err)
+			_ = flog.Errorf("Failed to Confirm %s: %s", receiver.manager.config.Server, err)
 			return nil
 		}
 	}

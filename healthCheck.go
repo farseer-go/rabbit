@@ -6,15 +6,16 @@ import (
 )
 
 type healthCheck struct {
-	server serverConfig
+	name   string
+	config rabbitConfig
 }
 
 func (c *healthCheck) Check() (string, error) {
-	manager := newManager(c.server, exchangeConfig{})
+	manager := newManager(c.config)
 	err := manager.Open()
 	defer func(conn *amqp.Connection) {
 		_ = conn.Close()
 	}(manager.conn)
 
-	return fmt.Sprintf("Rabbit.%s => Version %s", c.server.Server, manager.conn.Properties["version"]), err
+	return fmt.Sprintf("Rabbit.%s => Version %s", c.name, manager.conn.Properties["version"]), err
 }

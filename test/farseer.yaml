@@ -1,10 +1,6 @@
 Rabbit:
-  - Server: "Server=192.168.1.8:5672,UserName=farseer,Password=farseer,MinChannelCount=0,MaxChannelCount=0"
-    Exchange:
-      - "ExchangeName=Ex1,RoutingKey=,ExchangeType=fanout,IsDurable=true,UseConfirmModel=true,AutoCreateExchange=true"
-      - "ExchangeName=Ex2,RoutingKey=,ExchangeType=direct,IsDurable=true,UseConfirmModel=true,AutoCreateExchange=true"
-      - "ExchangeName=Ex3,RoutingKey=,ExchangeType=fanout,IsDurable=true,UseConfirmModel=false,AutoCreateExchange=true"
-      - "ExchangeName=,RoutingKey=,ExchangeType=fanout,IsDurable=true,UseConfirmModel=false,AutoCreateExchange=true"
+  Ex1: "Server=rabbit:5672,UserName=farseer,Password=farseer,Exchange=Ex1,RoutingKey=,Type=fanout,UseConfirm=false,AutoCreate=true"
+  Ex2: "Server=rabbit:5672,UserName=farseer,Password=farseer,Exchange=Ex2,RoutingKey=,Type=fanout,UseConfirm=false,AutoCreate=true"
 Log:
   LogLevel: "Information"
   Component:

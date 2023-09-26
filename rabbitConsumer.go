@@ -12,17 +12,17 @@ type rabbitConsumer struct {
 	manager *rabbitManager
 }
 
-func newConsumer(server serverConfig, exchange exchangeConfig) *rabbitConsumer {
+func newConsumer(config rabbitConfig) *rabbitConsumer {
 	return &rabbitConsumer{
-		manager: newManager(server, exchange),
+		manager: newManager(config),
 	}
 }
 
 func (receiver *rabbitConsumer) createQueueAndBindAndConsume(queueName, routingKey string, prefetchCount int, autoAck bool) (*amqp.Channel, <-chan amqp.Delivery) {
 	// 创建一个连接和通道
 	chl := receiver.manager.CreateChannel()
-	receiver.manager.CreateQueue(chl, queueName, receiver.manager.exchange.IsDurable, receiver.manager.exchange.AutoDelete, nil)
-	receiver.manager.BindQueue(chl, queueName, routingKey, receiver.manager.exchange.ExchangeName, nil)
+	receiver.manager.CreateQueue(chl, queueName, receiver.manager.config.IsDurable, receiver.manager.config.AutoDelete, nil)
+	receiver.manager.BindQueue(chl, queueName, routingKey, receiver.manager.config.Exchange, nil)
 
 	// 设置预读数量
 	err := chl.Qos(prefetchCount, 0, false)
@@ -101,8 +101,8 @@ func (receiver *rabbitConsumer) SubscribeBatch(queueName string, routingKey stri
 			if chl == nil || chl.IsClosed() {
 				// 创建一个连接和通道
 				chl = receiver.manager.CreateChannel()
-				receiver.manager.CreateQueue(chl, queueName, receiver.manager.exchange.IsDurable, receiver.manager.exchange.AutoDelete, nil)
-				receiver.manager.BindQueue(chl, queueName, routingKey, receiver.manager.exchange.ExchangeName, nil)
+				receiver.manager.CreateQueue(chl, queueName, receiver.manager.config.IsDurable, receiver.manager.config.AutoDelete, nil)
+				receiver.manager.BindQueue(chl, queueName, routingKey, receiver.manager.config.Exchange, nil)
 			}
 
 			lst, _ := receiver.pullBatch(queueName, true, pullCount, chl)
@@ -129,8 +129,8 @@ func (receiver *rabbitConsumer) SubscribeBatchAck(queueName string, routingKey s
 			if chl == nil || chl.IsClosed() {
 				// 创建一个连接和通道
 				chl = receiver.manager.CreateChannel()
-				receiver.manager.CreateQueue(chl, queueName, receiver.manager.exchange.IsDurable, receiver.manager.exchange.AutoDelete, nil)
-				receiver.manager.BindQueue(chl, queueName, routingKey, receiver.manager.exchange.ExchangeName, nil)
+				receiver.manager.CreateQueue(chl, queueName, receiver.manager.config.IsDurable, receiver.manager.config.AutoDelete, nil)
+				receiver.manager.BindQueue(chl, queueName, routingKey, receiver.manager.config.Exchange, nil)
 			}
 
 			lst, lastPage := receiver.pullBatch(queueName, false, pullCount, chl)

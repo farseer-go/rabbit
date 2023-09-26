@@ -13,8 +13,13 @@ func (module Module) DependsModule() []modules.FarseerModule {
 }
 
 func (module Module) Initialize() {
-	rabbitConfigs := configure.ParseConfigs[rabbitConfig]("Rabbit")
-	for _, config := range rabbitConfigs {
-		Register(config)
+	nodes := configure.GetSubNodes("Rabbit")
+	for key, val := range nodes {
+		configString := val.(string)
+		if configString == "" {
+			panic("[farseer.yaml]Rabbit." + key + "，没有正确配置")
+		}
+		// 注册内部上下文
+		Register(key, configString)
 	}
 }
