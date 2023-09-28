@@ -71,16 +71,16 @@ func (receiver *rabbitConsumer) SubscribeAck(queueName string, routingKey string
 				isSuccess = consumerHandle(string(page.Body), args)
 				if isSuccess {
 					if err := page.Ack(false); err != nil {
-						_ = flog.Errorf("Failed to Ack %s: %s %s", queueName, err, string(page.Body))
+						_ = flog.Errorf("Failed to Ack q=%s: %s %s", queueName, err, string(page.Body))
 					}
 				}
 			}).CatchException(func(exp any) {
-				_ = flog.Errorf("SubscribeAck exception:%s", exp)
+				_ = flog.Errorf("SubscribeAck exception: q=%s err:%s", queueName, exp)
 			})
 			if !isSuccess {
 				// Nack
 				if err := page.Nack(false, true); err != nil {
-					_ = flog.Errorf("Failed to Nack %s: %s %s", queueName, err, string(page.Body))
+					_ = flog.Errorf("Failed to Nack %s: q=%s %s", queueName, err, string(page.Body))
 				}
 			}
 		}
