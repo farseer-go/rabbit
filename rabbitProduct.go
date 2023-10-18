@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"github.com/farseer-go/fs"
 	"github.com/farseer-go/fs/flog"
+	"github.com/farseer-go/linkTrace"
 	amqp "github.com/rabbitmq/amqp091-go"
 	"sync"
 	"sync/atomic"
@@ -120,6 +121,7 @@ func (receiver *rabbitProduct) SendJsonKey(data any, routingKey string) error {
 
 // SendMessage 发送消息
 func (receiver *rabbitProduct) SendMessage(message []byte, routingKey, messageId string, priority uint8) error {
+	traceDetailMq := linkTrace.TraceMq("Send", receiver.manager.config.Server, receiver.manager.config.Exchange, receiver.manager.config.RoutingKey)
 	rabbitChl := receiver.popChannel()
 	defer func(rabbitChl rabbitChannel) {
 		receiver.pushChannel(rabbitChl)
@@ -140,6 +142,7 @@ func (receiver *rabbitProduct) SendMessage(message []byte, routingKey, messageId
 			Body:         message,
 		})
 
+	defer func() { traceDetailMq.End(err) }()
 	if err != nil {
 		//if rabbitError, ok := err.(*amqp.Error); ok {
 		//	if rabbitError.Code == 504 {
