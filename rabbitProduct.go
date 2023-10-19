@@ -6,8 +6,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/farseer-go/fs"
+	"github.com/farseer-go/fs/container"
 	"github.com/farseer-go/fs/flog"
-	"github.com/farseer-go/linkTrace"
+	"github.com/farseer-go/fs/trace"
 	amqp "github.com/rabbitmq/amqp091-go"
 	"sync"
 	"sync/atomic"
@@ -20,6 +21,7 @@ type rabbitProduct struct {
 	chlQueue         chan rabbitChannel // 通道队列，使用完后放回此队列
 	workChannelCount int32              // 正在使用的通道数量
 	lock             *sync.Mutex
+	traceManager     trace.IManager
 }
 type rabbitChannel struct {
 	chl      *amqp.Channel
@@ -35,6 +37,7 @@ func newProduct(config rabbitConfig) *rabbitProduct {
 		deliveryMode: deliveryMode,
 		manager:      newManager(config),
 		lock:         &sync.Mutex{},
+		traceManager: container.Resolve[trace.IManager](),
 	}
 }
 
@@ -121,7 +124,7 @@ func (receiver *rabbitProduct) SendJsonKey(data any, routingKey string) error {
 
 // SendMessage 发送消息
 func (receiver *rabbitProduct) SendMessage(message []byte, routingKey, messageId string, priority uint8) error {
-	traceDetailMq := linkTrace.TraceMq("Send", receiver.manager.config.Server, receiver.manager.config.Exchange, receiver.manager.config.RoutingKey)
+	traceDetailMq := receiver.traceManager.TraceMq("Send", receiver.manager.config.Server, receiver.manager.config.Exchange, receiver.manager.config.RoutingKey)
 	rabbitChl := receiver.popChannel()
 	defer func(rabbitChl rabbitChannel) {
 		receiver.pushChannel(rabbitChl)
