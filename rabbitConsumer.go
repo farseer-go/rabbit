@@ -117,8 +117,9 @@ func (receiver *rabbitConsumer) SubscribeBatch(queueName string, routingKey stri
 				}).CatchException(func(exp any) {
 					entryMqConsumer.Error(flog.Errorf("SubscribeBatch exception:%s", exp))
 				})
+				// 数量大于0，才追踪
+				entryMqConsumer.End()
 			}
-			entryMqConsumer.End()
 			time.Sleep(500 * time.Millisecond)
 		}
 	}()
@@ -159,8 +160,9 @@ func (receiver *rabbitConsumer) SubscribeBatchAck(queueName string, routingKey s
 						entryMqConsumer.Error(flog.Errorf("Failed to Nack %s: %s", queueName, err))
 					}
 				}
+				// 数量大于0，才追踪
+				entryMqConsumer.End()
 			}
-			entryMqConsumer.End()
 			time.Sleep(100 * time.Millisecond)
 		}
 	}()
