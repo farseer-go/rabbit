@@ -37,8 +37,7 @@ func (receiver *rabbitManager) Open() error {
 			receiver.conn, err = amqp.Dial(fmt.Sprintf("amqp://%s:%s@%s/", receiver.config.UserName, receiver.config.Password, receiver.config.Server))
 			defer func() { traceDetail.End(err) }()
 			if err != nil {
-				_ = flog.Errorf("Failed to connect to RabbitMQ %s: %s", receiver.config.Server, err)
-				return err
+				return flog.Errorf("Failed to connect to RabbitMQ %s: %s", receiver.config.Server, err)
 			}
 			receiver.CreateExchange(receiver.config.Exchange, receiver.config.Type, receiver.config.IsDurable, receiver.config.AutoDelete, nil)
 		}
