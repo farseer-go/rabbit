@@ -68,6 +68,7 @@ func (receiver *rabbitManager) CreateExchange(exchangeName, exchangeType string,
 func (receiver *rabbitManager) CreateChannel() *amqp.Channel {
 	err := receiver.Open()
 	if err != nil {
+		flog.Error(err)
 		return nil
 	}
 
