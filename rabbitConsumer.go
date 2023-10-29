@@ -45,7 +45,7 @@ func (receiver *rabbitConsumer) Subscribe(queueName string, routingKey string, p
 	go func(chl *amqp.Channel) {
 		// 读取通道的消息
 		for page := range deliveries {
-			entryMqConsumer := receiver.manager.traceManager.EntryMqConsumer(receiver.manager.config.Server, receiver.manager.config.Exchange, receiver.manager.config.RoutingKey)
+			entryMqConsumer := receiver.manager.traceManager.EntryMqConsumer(receiver.manager.config.Server, queueName, receiver.manager.config.RoutingKey)
 			args := receiver.createEventArgs(page)
 			exception.Try(func() {
 				consumerHandle(string(page.Body), args)
@@ -67,7 +67,7 @@ func (receiver *rabbitConsumer) SubscribeAck(queueName string, routingKey string
 	go func(chl *amqp.Channel) {
 		// 读取通道的消息
 		for page := range deliveries {
-			entryMqConsumer := receiver.manager.traceManager.EntryMqConsumer(receiver.manager.config.Server, receiver.manager.config.Exchange, receiver.manager.config.RoutingKey)
+			entryMqConsumer := receiver.manager.traceManager.EntryMqConsumer(receiver.manager.config.Server, queueName, receiver.manager.config.RoutingKey)
 			args := receiver.createEventArgs(page)
 			isSuccess := false
 			exception.Try(func() {
@@ -102,7 +102,7 @@ func (receiver *rabbitConsumer) SubscribeBatch(queueName string, routingKey stri
 	go func() {
 		var chl *amqp.Channel
 		for {
-			entryMqConsumer := receiver.manager.traceManager.EntryMqConsumer(receiver.manager.config.Server, receiver.manager.config.Exchange, receiver.manager.config.RoutingKey)
+			entryMqConsumer := receiver.manager.traceManager.EntryMqConsumer(receiver.manager.config.Server, queueName, receiver.manager.config.RoutingKey)
 			if chl == nil || chl.IsClosed() {
 				// 创建一个连接和通道
 				chl = receiver.manager.CreateChannel()
@@ -133,7 +133,7 @@ func (receiver *rabbitConsumer) SubscribeBatchAck(queueName string, routingKey s
 	go func() {
 		var chl *amqp.Channel
 		for {
-			entryMqConsumer := receiver.manager.traceManager.EntryMqConsumer(receiver.manager.config.Server, receiver.manager.config.Exchange, receiver.manager.config.RoutingKey)
+			entryMqConsumer := receiver.manager.traceManager.EntryMqConsumer(receiver.manager.config.Server, queueName, receiver.manager.config.RoutingKey)
 			if chl == nil || chl.IsClosed() {
 				// 创建一个连接和通道
 				chl = receiver.manager.CreateChannel()
