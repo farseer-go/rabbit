@@ -74,7 +74,7 @@ func (receiver *rabbitConsumer) SubscribeAck(queueName string, routingKey string
 				isSuccess = consumerHandle(string(page.Body), args)
 				if isSuccess {
 					if err := page.Ack(false); err != nil {
-						_ = flog.Errorf("Failed to Ack q=%s: %s %s", queueName, err, string(page.Body))
+						_ = flog.Errorf("SubscribeAck Failed to Ack q=%s: %s %s", queueName, err, string(page.Body))
 					}
 				}
 			}).CatchException(func(exp any) {
@@ -83,7 +83,7 @@ func (receiver *rabbitConsumer) SubscribeAck(queueName string, routingKey string
 			if !isSuccess {
 				// Nack
 				if err := page.Nack(false, true); err != nil {
-					entryMqConsumer.Error(flog.Errorf("Failed to Nack %s: q=%s %s", queueName, err, string(page.Body)))
+					entryMqConsumer.Error(flog.Errorf("SubscribeAck Failed to Nack %s: q=%s %s", queueName, err, string(page.Body)))
 				}
 			}
 			entryMqConsumer.End()
@@ -148,7 +148,7 @@ func (receiver *rabbitConsumer) SubscribeBatchAck(queueName string, routingKey s
 					isSuccess = consumerHandle(lst)
 					if isSuccess {
 						if err := lastPage.Ack(true); err != nil {
-							entryMqConsumer.Error(flog.Errorf("Failed to Ack %s: %s", queueName, err))
+							entryMqConsumer.Error(flog.Errorf("SubscribeBatchAck Failed to Ack %s: %s", queueName, err))
 						}
 					}
 				}).CatchException(func(exp any) {
@@ -157,7 +157,7 @@ func (receiver *rabbitConsumer) SubscribeBatchAck(queueName string, routingKey s
 				if !isSuccess {
 					// Nack
 					if err := lastPage.Nack(true, true); err != nil {
-						entryMqConsumer.Error(flog.Errorf("Failed to Nack %s: %s", queueName, err))
+						entryMqConsumer.Error(flog.Errorf("SubscribeBatchAck Failed to Nack %s: %s", queueName, err))
 					}
 				}
 				// 数量大于0，才追踪
