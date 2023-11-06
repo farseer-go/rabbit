@@ -74,12 +74,14 @@ func (receiver *rabbitProduct) init() {
 	receiver.chlQueue = make(chan rabbitChannel, 2048)
 	// 按最低channel要求，创建指定数量的channel
 	for len(receiver.chlQueue) < receiver.manager.config.MinChannel {
-		receiver.chlQueue <- receiver.createChannelAndConfirm()
+		if channel := receiver.createChannelAndConfirm(); channel.chl != nil && !channel.chl.IsClosed() {
+			receiver.chlQueue <- channel
+		}
 	}
 }
 
 func (receiver *rabbitProduct) createChannelAndConfirm() rabbitChannel {
-	chl := receiver.manager.CreateChannel()
+	chl, _ := receiver.manager.CreateChannel()
 	return rabbitChannel{
 		chl:      chl,
 		confirms: receiver.confirm(chl),

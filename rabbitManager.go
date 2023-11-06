@@ -65,11 +65,10 @@ func (receiver *rabbitManager) CreateExchange(exchangeName, exchangeType string,
 }
 
 // CreateChannel 创建通道
-func (receiver *rabbitManager) CreateChannel() *amqp.Channel {
+func (receiver *rabbitManager) CreateChannel() (*amqp.Channel, error) {
 	err := receiver.Open()
 	if err != nil {
-		flog.Error(err)
-		return nil
+		return nil, flog.Error(err)
 	}
 
 	traceDetail := receiver.traceManager.TraceMq("CreateChannel", receiver.config.Server, receiver.config.Exchange)
@@ -77,9 +76,9 @@ func (receiver *rabbitManager) CreateChannel() *amqp.Channel {
 	defer func() { traceDetail.End(err) }()
 
 	if err != nil {
-		flog.Panicf("Failed to Open a channel %s: %s", receiver.config.Server, err)
+		return nil, flog.Errorf("Failed to Open a channel %s: %s", receiver.config.Server, err)
 	}
-	return c
+	return c, nil
 }
 
 // CreateQueue 创建队列

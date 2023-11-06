@@ -19,14 +19,14 @@ func newConsumer(config rabbitConfig) *rabbitConsumer {
 }
 
 func (receiver *rabbitConsumer) createQueueAndBindAndConsume(queueName, routingKey string, prefetchCount int, autoAck bool) (*amqp.Channel, <-chan amqp.Delivery) {
-	// 创建一个连接和通道
-	chl := receiver.manager.CreateChannel()
-	receiver.manager.CreateQueue(chl, queueName, receiver.manager.config.IsDurable, receiver.manager.config.AutoDelete, nil)
-	receiver.manager.BindQueue(chl, queueName, routingKey, receiver.manager.config.Exchange, nil)
+	var chl *amqp.Channel
+	var err error
+	if chl, err = receiver.createAndBindQueue(chl, queueName, routingKey); err != nil {
+		panic(err.Error())
+	}
 
 	// 设置预读数量
-	err := chl.Qos(prefetchCount, 0, false)
-	if err != nil {
+	if err := chl.Qos(prefetchCount, 0, false); err != nil {
 		flog.Panicf("Failed to Qos %s: %s", queueName, err)
 	}
 
@@ -101,13 +101,14 @@ func (receiver *rabbitConsumer) SubscribeBatch(queueName string, routingKey stri
 
 	go func() {
 		var chl *amqp.Channel
+		var err error
 		for {
+			time.Sleep(500 * time.Millisecond)
 			entryMqConsumer := receiver.manager.traceManager.EntryMqConsumer(receiver.manager.config.Server, queueName, receiver.manager.config.RoutingKey)
-			if chl == nil || chl.IsClosed() {
-				// 创建一个连接和通道
-				chl = receiver.manager.CreateChannel()
-				receiver.manager.CreateQueue(chl, queueName, receiver.manager.config.IsDurable, receiver.manager.config.AutoDelete, nil)
-				receiver.manager.BindQueue(chl, queueName, routingKey, receiver.manager.config.Exchange, nil)
+			if chl, err = receiver.createAndBindQueue(chl, queueName, routingKey); err != nil {
+				entryMqConsumer.Error(err)
+				entryMqConsumer.End()
+				continue
 			}
 
 			lst, _ := receiver.pullBatch(queueName, true, pullCount, chl)
@@ -120,7 +121,6 @@ func (receiver *rabbitConsumer) SubscribeBatch(queueName string, routingKey stri
 				// 数量大于0，才追踪
 				entryMqConsumer.End()
 			}
-			time.Sleep(500 * time.Millisecond)
 		}
 	}()
 }
@@ -132,15 +132,15 @@ func (receiver *rabbitConsumer) SubscribeBatchAck(queueName string, routingKey s
 
 	go func() {
 		var chl *amqp.Channel
+		var err error
 		for {
+			time.Sleep(100 * time.Millisecond)
 			entryMqConsumer := receiver.manager.traceManager.EntryMqConsumer(receiver.manager.config.Server, queueName, receiver.manager.config.RoutingKey)
-			if chl == nil || chl.IsClosed() {
-				// 创建一个连接和通道
-				chl = receiver.manager.CreateChannel()
-				receiver.manager.CreateQueue(chl, queueName, receiver.manager.config.IsDurable, receiver.manager.config.AutoDelete, nil)
-				receiver.manager.BindQueue(chl, queueName, routingKey, receiver.manager.config.Exchange, nil)
+			if chl, err = receiver.createAndBindQueue(chl, queueName, routingKey); err != nil {
+				entryMqConsumer.Error(err)
+				entryMqConsumer.End()
+				continue
 			}
-
 			lst, lastPage := receiver.pullBatch(queueName, false, pullCount, chl)
 			if lst.Count() > 0 {
 				isSuccess := false
@@ -163,7 +163,6 @@ func (receiver *rabbitConsumer) SubscribeBatchAck(queueName string, routingKey s
 				// 数量大于0，才追踪
 				entryMqConsumer.End()
 			}
-			time.Sleep(100 * time.Millisecond)
 		}
 	}()
 }
@@ -212,4 +211,18 @@ func (receiver *rabbitConsumer) pullBatch(queueName string, autoAck bool, pullCo
 	}
 
 	return lst, lastPage
+}
+
+// 创建频道并绑定
+func (receiver *rabbitConsumer) createAndBindQueue(chl *amqp.Channel, queueName, routingKey string) (*amqp.Channel, error) {
+	if chl == nil || chl.IsClosed() {
+		// 创建一个连接和通道
+		var err error
+		if chl, err = receiver.manager.CreateChannel(); err != nil {
+			return chl, err
+		}
+		receiver.manager.CreateQueue(chl, queueName, receiver.manager.config.IsDurable, receiver.manager.config.AutoDelete, nil)
+		receiver.manager.BindQueue(chl, queueName, routingKey, receiver.manager.config.Exchange, nil)
+	}
+	return chl, nil
 }
