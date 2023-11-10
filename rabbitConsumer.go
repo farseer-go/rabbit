@@ -46,7 +46,7 @@ func (receiver *rabbitConsumer) Subscribe(queueName string, routingKey string, p
 		// 读取通道的消息
 		for page := range deliveries {
 			entryMqConsumer := receiver.manager.traceManager.EntryMqConsumer(receiver.manager.config.Server, queueName, receiver.manager.config.RoutingKey)
-			args := receiver.createEventArgs(page)
+			args := receiver.createEventArgs(page, queueName)
 			exception.Try(func() {
 				consumerHandle(string(page.Body), args)
 			}).CatchException(func(exp any) {
@@ -68,7 +68,7 @@ func (receiver *rabbitConsumer) SubscribeAck(queueName string, routingKey string
 		// 读取通道的消息
 		for page := range deliveries {
 			entryMqConsumer := receiver.manager.traceManager.EntryMqConsumer(receiver.manager.config.Server, queueName, receiver.manager.config.RoutingKey)
-			args := receiver.createEventArgs(page)
+			args := receiver.createEventArgs(page, queueName)
 			isSuccess := false
 			exception.Try(func() {
 				isSuccess = consumerHandle(string(page.Body), args)
@@ -168,8 +168,9 @@ func (receiver *rabbitConsumer) SubscribeBatchAck(queueName string, routingKey s
 }
 
 // 生成事件参数
-func (receiver *rabbitConsumer) createEventArgs(page amqp.Delivery) EventArgs {
+func (receiver *rabbitConsumer) createEventArgs(page amqp.Delivery, queueName string) EventArgs {
 	return EventArgs{
+		QueueName:       queueName,
 		ConsumerTag:     page.ConsumerTag,
 		DeliveryTag:     page.DeliveryTag,
 		Redelivered:     page.Redelivered,
@@ -207,7 +208,7 @@ func (receiver *rabbitConsumer) pullBatch(queueName string, autoAck bool, pullCo
 			break
 		}
 		lastPage = msg
-		lst.Add(receiver.createEventArgs(msg))
+		lst.Add(receiver.createEventArgs(msg, queueName))
 	}
 
 	return lst, lastPage

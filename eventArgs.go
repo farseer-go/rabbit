@@ -25,4 +25,5 @@ type EventArgs struct {
 	AppId           string         // application use - creating application id
 	// Valid only with Channel.Get
 	MessageCount uint32
+	QueueName    string // 队列名称
 }
