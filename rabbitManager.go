@@ -3,7 +3,6 @@ package rabbit
 import (
 	"fmt"
 	"github.com/farseer-go/fs/container"
-	"github.com/farseer-go/fs/flog"
 	"github.com/farseer-go/fs/trace"
 	amqp "github.com/rabbitmq/amqp091-go"
 	"sync"
@@ -31,74 +30,74 @@ func (receiver *rabbitManager) Open() error {
 	if receiver.conn == nil || receiver.conn.IsClosed() {
 		receiver.lock.Lock()
 		defer receiver.lock.Unlock()
+
 		if receiver.conn == nil || receiver.conn.IsClosed() {
 			traceDetail := receiver.traceManager.TraceMq("Open", receiver.config.Server, receiver.config.Exchange)
+
 			var err error
 			receiver.conn, err = amqp.Dial(fmt.Sprintf("amqp://%s:%s@%s/", receiver.config.UserName, receiver.config.Password, receiver.config.Server))
 			defer func() { traceDetail.End(err) }()
 			if err != nil {
-				return flog.Errorf("Failed to connect to RabbitMQ %s: %s", receiver.config.Server, err)
+				return fmt.Errorf("failed to connect to RabbitMQ %s: %s", receiver.config.Server, err)
 			}
-			receiver.CreateExchange(receiver.config.Exchange, receiver.config.Type, receiver.config.IsDurable, receiver.config.AutoDelete, nil)
 		}
 	}
 	return nil
 }
 
-// CreateExchange 创建交换器
-func (receiver *rabbitManager) CreateExchange(exchangeName, exchangeType string, isDurable, autoDelete bool, args amqp.Table) {
-	if receiver.config.AutoCreate {
-		var err error
-		traceDetail := receiver.traceManager.TraceMq("CreateExchange", receiver.config.Server, receiver.config.Exchange)
-		defer func() { traceDetail.End(err) }()
-		var c *amqp.Channel
-		c, err = receiver.conn.Channel()
-		defer func() {
-			_ = c.Close()
-		}()
-
-		err = c.ExchangeDeclare(exchangeName, exchangeType, isDurable, autoDelete, false, false, args)
-		if err != nil {
-			flog.Panicf("Failed to Declare Exchange %s: %s", receiver.config.Server, err)
-		}
-	}
-}
-
 // CreateChannel 创建通道
 func (receiver *rabbitManager) CreateChannel() (*amqp.Channel, error) {
-	err := receiver.Open()
-	if err != nil {
-		return nil, flog.Error(err)
-	}
-
+	var err error
 	traceDetail := receiver.traceManager.TraceMq("CreateChannel", receiver.config.Server, receiver.config.Exchange)
-	c, err := receiver.conn.Channel()
 	defer func() { traceDetail.End(err) }()
 
-	if err != nil {
-		return nil, flog.Errorf("Failed to Open a channel %s: %s", receiver.config.Server, err)
+	// 连接rabbit
+	if err = receiver.Open(); err != nil {
+		return nil, err
+	}
+
+	// 打开通道
+	var c *amqp.Channel
+	if c, err = receiver.conn.Channel(); err != nil {
+		return nil, fmt.Errorf("failed to Open a channel %s: %s", receiver.config.Server, err)
 	}
 	return c, nil
 }
 
+// CreateExchange 创建交换器
+func (receiver *rabbitManager) CreateExchange(c *amqp.Channel, exchangeName, exchangeType string, isDurable, autoDelete bool, args amqp.Table) error {
+	if receiver.config.AutoCreate {
+		var err error
+		traceDetail := receiver.traceManager.TraceMq("CreateExchange", receiver.config.Server, receiver.config.Exchange)
+		defer func() { traceDetail.End(err) }()
+
+		// 创建交换器
+		err = c.ExchangeDeclare(exchangeName, exchangeType, isDurable, autoDelete, false, false, args)
+		if err != nil {
+			return fmt.Errorf("failed to Declare Exchange %s: %s", receiver.config.Server, err)
+		}
+	}
+	return nil
+}
+
 // CreateQueue 创建队列
-func (receiver *rabbitManager) CreateQueue(c *amqp.Channel, queueName string, isDurable, autoDelete bool, args amqp.Table) {
+func (receiver *rabbitManager) CreateQueue(c *amqp.Channel, queueName string, isDurable, autoDelete bool, args amqp.Table) error {
 	traceDetail := receiver.traceManager.TraceMq("CreateQueue", receiver.config.Server, receiver.config.Exchange)
 	_, err := c.QueueDeclare(queueName, isDurable, autoDelete, false, false, args)
-	defer func() { traceDetail.End(err) }()
-
 	if err != nil {
-		flog.Panicf("Failed to Declare Exchange %s: %s", receiver.config.Server, err)
+		err = fmt.Errorf("failed to Declare Exchange %s: %s", receiver.config.Server, err)
 	}
+	traceDetail.End(err)
+	return err
 }
 
 // BindQueue 创建队列
-func (receiver *rabbitManager) BindQueue(c *amqp.Channel, queueName, routingKey, exchangeName string, args amqp.Table) {
+func (receiver *rabbitManager) BindQueue(c *amqp.Channel, queueName, routingKey, exchangeName string, args amqp.Table) error {
 	traceDetail := receiver.traceManager.TraceMq("BindQueue", receiver.config.Server, receiver.config.Exchange)
 	err := c.QueueBind(queueName, routingKey, exchangeName, false, args)
-	defer func() { traceDetail.End(err) }()
-
 	if err != nil {
-		flog.Panicf("Failed to QueueBind %s: %s", receiver.config.Server, err)
+		err = fmt.Errorf("failed to QueueBind %s: %s", receiver.config.Server, err)
 	}
+	traceDetail.End(err)
+	return err
 }

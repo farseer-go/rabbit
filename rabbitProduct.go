@@ -23,6 +23,7 @@ type rabbitProduct struct {
 type rabbitChannel struct {
 	chl      *amqp.Channel
 	confirms chan amqp.Confirmation
+	err      error
 }
 
 func newProduct(config rabbitConfig) *rabbitProduct {
@@ -57,10 +58,13 @@ func (receiver *rabbitProduct) popChannel() rabbitChannel {
 			if receiver.workChannelCount >= receiver.manager.config.MaxChannel {
 				continue
 			}
-			return receiver.createChannelAndConfirm()
+			if chl := receiver.createChannelAndConfirm(); chl.err == nil {
+				return chl
+			}
 		case rabbitChl := <-receiver.chlQueue:
 			// 如果通道是关闭状态，则重新走取出逻辑
-			if rabbitChl.chl.IsClosed() {
+			if rabbitChl.err != nil || rabbitChl.chl.IsClosed() {
+				flog.ErrorIfExists(rabbitChl.err)
 				continue
 			}
 			return rabbitChl
@@ -68,6 +72,7 @@ func (receiver *rabbitProduct) popChannel() rabbitChannel {
 	}
 }
 
+// 初始化本地通道列表
 func (receiver *rabbitProduct) init() {
 	// 首次使用
 	receiver.workChannelCount = 0
@@ -80,17 +85,33 @@ func (receiver *rabbitProduct) init() {
 	}
 }
 
+// 创建通道
 func (receiver *rabbitProduct) createChannelAndConfirm() rabbitChannel {
-	chl, _ := receiver.manager.CreateChannel()
+	chl, err := receiver.manager.CreateChannel()
+	if err != nil {
+		_ = flog.Error(err)
+		return rabbitChannel{
+			err: err,
+			chl: chl,
+		}
+	}
+
+	var confirms chan amqp.Confirmation
+	confirms, err = receiver.confirm(chl)
+	flog.ErrorIfExists(err)
 	return rabbitChannel{
+		err:      err,
 		chl:      chl,
-		confirms: receiver.confirm(chl),
+		confirms: confirms,
 	}
 }
 
 // 通道使用完后，放回队列中
 func (receiver *rabbitProduct) pushChannel(rabbitChl rabbitChannel) {
 	defer atomic.AddInt32(&receiver.workChannelCount, -1)
+	if rabbitChl.err != nil {
+		return
+	}
 	receiver.chlQueue <- rabbitChl
 }
 
@@ -150,7 +171,7 @@ func (receiver *rabbitProduct) SendMessage(message []byte, routingKey, messageId
 		//
 		//	}
 		//}
-		return flog.Errorf("Failed to Publish %s: %s", receiver.manager.config.Server, err)
+		return flog.Errorf("failed to Publish %s: %s", receiver.manager.config.Server, err)
 	}
 
 	// 确认消息
@@ -163,14 +184,13 @@ func (receiver *rabbitProduct) SendMessage(message []byte, routingKey, messageId
 }
 
 // 是否需要消息确认
-func (receiver *rabbitProduct) confirm(chl *amqp.Channel) chan amqp.Confirmation {
+func (receiver *rabbitProduct) confirm(chl *amqp.Channel) (chan amqp.Confirmation, error) {
 	var confirms chan amqp.Confirmation
 	if receiver.manager.config.UseConfirm {
 		confirms = chl.NotifyPublish(make(chan amqp.Confirmation, 1))
 		if err := chl.Confirm(false); err != nil {
-			_ = flog.Errorf("Failed to Confirm %s: %s", receiver.manager.config.Server, err)
-			return nil
+			return nil, fmt.Errorf("failed to Confirm %s: %s", receiver.manager.config.Server, err)
 		}
 	}
-	return confirms
+	return confirms, nil
 }

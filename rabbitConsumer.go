@@ -27,13 +27,13 @@ func (receiver *rabbitConsumer) createQueueAndBindAndConsume(queueName, routingK
 
 	// 设置预读数量
 	if err := chl.Qos(prefetchCount, 0, false); err != nil {
-		flog.Panicf("Failed to Qos %s: %s", queueName, err)
+		flog.Panicf("failed to Qos %s: %s", queueName, err)
 	}
 
 	// 订阅消息
 	deliveries, err := chl.Consume(queueName, "", autoAck, false, false, false, nil)
 	if err != nil {
-		flog.Panicf("Failed to Subscribe %s: %s", queueName, err)
+		flog.Panicf("failed to Subscribe %s: %s", queueName, err)
 	}
 	return chl, deliveries
 }
@@ -71,19 +71,18 @@ func (receiver *rabbitConsumer) SubscribeAck(queueName string, routingKey string
 			args := receiver.createEventArgs(page, queueName)
 			isSuccess := false
 			exception.Try(func() {
-				isSuccess = consumerHandle(string(page.Body), args)
-				if isSuccess {
+				if isSuccess = consumerHandle(string(page.Body), args); isSuccess {
 					if err := page.Ack(false); err != nil {
-						_ = flog.Errorf("SubscribeAck Failed to Ack q=%s: %s %s", queueName, err, string(page.Body))
+						_ = flog.Errorf("subscribeAck failed to Ack q=%s: %s %s", queueName, err, string(page.Body))
 					}
 				}
 			}).CatchException(func(exp any) {
-				entryMqConsumer.Error(flog.Errorf("SubscribeAck exception: q=%s err:%s", queueName, exp))
+				entryMqConsumer.Error(flog.Errorf("subscribeAck exception: q=%s err:%s", queueName, exp))
 			})
 			if !isSuccess {
 				// Nack
 				if err := page.Nack(false, true); err != nil {
-					entryMqConsumer.Error(flog.Errorf("SubscribeAck Failed to Nack %s: q=%s %s", queueName, err, string(page.Body)))
+					entryMqConsumer.Error(flog.Errorf("subscribeAck failed to Nack %s: q=%s %s", queueName, err, string(page.Body)))
 				}
 			}
 			entryMqConsumer.End()
@@ -96,19 +95,27 @@ func (receiver *rabbitConsumer) SubscribeAck(queueName string, routingKey string
 
 func (receiver *rabbitConsumer) SubscribeBatch(queueName string, routingKey string, pullCount int, consumerHandle func(messages collections.List[EventArgs])) {
 	if pullCount < 1 {
-		flog.Panicf("The parameter pullCount must be greater than 0， %s: %d", queueName, pullCount)
+		flog.Panicf("the parameter pullCount must be greater than 0， %s: %d", queueName, pullCount)
+	}
+
+	if _, err := receiver.createAndBindQueue(nil, queueName, routingKey); err != nil {
+		panic(err)
 	}
 
 	go func() {
 		var chl *amqp.Channel
-		var err error
 		for {
 			time.Sleep(500 * time.Millisecond)
 			entryMqConsumer := receiver.manager.traceManager.EntryMqConsumer(receiver.manager.config.Server, queueName, receiver.manager.config.RoutingKey)
-			if chl, err = receiver.createAndBindQueue(chl, queueName, routingKey); err != nil {
-				entryMqConsumer.Error(err)
-				entryMqConsumer.End()
-				continue
+			// 创建一个连接和通道
+			var err error
+			if chl == nil || chl.IsClosed() {
+				if chl, err = receiver.manager.CreateChannel(); err != nil {
+					entryMqConsumer.Error(err)
+					entryMqConsumer.End()
+					_ = flog.Error(err)
+					continue
+				}
 			}
 
 			lst, _ := receiver.pullBatch(queueName, true, pullCount, chl)
@@ -127,20 +134,29 @@ func (receiver *rabbitConsumer) SubscribeBatch(queueName string, routingKey stri
 
 func (receiver *rabbitConsumer) SubscribeBatchAck(queueName string, routingKey string, pullCount int, consumerHandle func(messages collections.List[EventArgs]) bool) {
 	if pullCount < 1 {
-		flog.Panicf("The parameter pullCount must be greater than 0， %s: %d", queueName, pullCount)
+		flog.Panicf("the parameter pullCount must be greater than 0， %s: %d", queueName, pullCount)
+	}
+
+	if _, err := receiver.createAndBindQueue(nil, queueName, routingKey); err != nil {
+		panic(err)
 	}
 
 	go func() {
 		var chl *amqp.Channel
-		var err error
 		for {
 			time.Sleep(100 * time.Millisecond)
 			entryMqConsumer := receiver.manager.traceManager.EntryMqConsumer(receiver.manager.config.Server, queueName, receiver.manager.config.RoutingKey)
-			if chl, err = receiver.createAndBindQueue(chl, queueName, routingKey); err != nil {
-				entryMqConsumer.Error(err)
-				entryMqConsumer.End()
-				continue
+			// 创建一个连接和通道
+			var err error
+			if chl == nil || chl.IsClosed() {
+				if chl, err = receiver.manager.CreateChannel(); err != nil {
+					entryMqConsumer.Error(err)
+					entryMqConsumer.End()
+					_ = flog.Error(err)
+					continue
+				}
 			}
+
 			lst, lastPage := receiver.pullBatch(queueName, false, pullCount, chl)
 			if lst.Count() > 0 {
 				isSuccess := false
@@ -148,16 +164,16 @@ func (receiver *rabbitConsumer) SubscribeBatchAck(queueName string, routingKey s
 					isSuccess = consumerHandle(lst)
 					if isSuccess {
 						if err := lastPage.Ack(true); err != nil {
-							entryMqConsumer.Error(flog.Errorf("SubscribeBatchAck Failed to Ack %s: %s", queueName, err))
+							entryMqConsumer.Error(flog.Errorf("subscribeBatchAck failed to Ack %s: %s", queueName, err))
 						}
 					}
 				}).CatchException(func(exp any) {
-					entryMqConsumer.Error(flog.Errorf("SubscribeBatchAck exception:%s", exp))
+					entryMqConsumer.Error(flog.Errorf("subscribeBatchAck exception:%s", exp))
 				})
 				if !isSuccess {
 					// Nack
 					if err := lastPage.Nack(true, true); err != nil {
-						entryMqConsumer.Error(flog.Errorf("SubscribeBatchAck Failed to Nack %s: %s", queueName, err))
+						entryMqConsumer.Error(flog.Errorf("subscribeBatchAck failed to Nack %s: %s", queueName, err))
 					}
 				}
 				// 数量大于0，才追踪
@@ -202,7 +218,7 @@ func (receiver *rabbitConsumer) pullBatch(queueName string, autoAck bool, pullCo
 	for lst.Count() < pullCount {
 		msg, ok, err := chl.Get(queueName, autoAck)
 		if err != nil {
-			_ = flog.Errorf("Failed to Get %s: %s", queueName, err)
+			_ = flog.Errorf("failed to Get %s: %s", queueName, err)
 		}
 		if !ok {
 			break
@@ -216,14 +232,24 @@ func (receiver *rabbitConsumer) pullBatch(queueName string, autoAck bool, pullCo
 
 // 创建频道并绑定
 func (receiver *rabbitConsumer) createAndBindQueue(chl *amqp.Channel, queueName, routingKey string) (*amqp.Channel, error) {
+	var err error
 	if chl == nil || chl.IsClosed() {
 		// 创建一个连接和通道
-		var err error
 		if chl, err = receiver.manager.CreateChannel(); err != nil {
 			return chl, err
 		}
-		receiver.manager.CreateQueue(chl, queueName, receiver.manager.config.IsDurable, receiver.manager.config.AutoDelete, nil)
-		receiver.manager.BindQueue(chl, queueName, routingKey, receiver.manager.config.Exchange, nil)
+
+		// 创建队列
+		if err = receiver.manager.CreateQueue(chl, queueName, receiver.manager.config.IsDurable, receiver.manager.config.AutoDelete, nil); err != nil {
+			_ = chl.Close()
+			return nil, err
+		}
+
+		// 绑定队列
+		if err = receiver.manager.BindQueue(chl, queueName, routingKey, receiver.manager.config.Exchange, nil); err != nil {
+			_ = chl.Close()
+			return nil, err
+		}
 	}
 	return chl, nil
 }

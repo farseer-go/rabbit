@@ -10,12 +10,20 @@ type healthCheck struct {
 	config rabbitConfig
 }
 
-func (c *healthCheck) Check() (string, error) {
-	manager := newManager(c.config)
+func (receiver *healthCheck) Check() (string, error) {
+	manager := newManager(receiver.config)
+
+	// 连接
 	err := manager.Open()
 	defer func(conn *amqp.Connection) {
 		_ = conn.Close()
 	}(manager.conn)
 
-	return fmt.Sprintf("Rabbit.%s => Version %s", c.name, manager.conn.Properties["version"]), err
+	// 创建channel
+	var c *amqp.Channel
+	if c, err = manager.CreateChannel(); err == nil {
+		// 创建交换器
+		err = manager.CreateExchange(c, manager.config.Exchange, manager.config.Type, manager.config.IsDurable, manager.config.AutoDelete, nil)
+	}
+	return fmt.Sprintf("Rabbit.%s => Version %s", receiver.name, manager.conn.Properties["version"]), err
 }
