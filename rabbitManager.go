@@ -45,6 +45,13 @@ func (receiver *rabbitManager) Open() error {
 	return nil
 }
 
+// Close 关闭
+func (receiver *rabbitManager) Close() {
+	if receiver.conn != nil {
+		_ = receiver.conn.Close()
+	}
+}
+
 // CreateChannel 创建通道
 func (receiver *rabbitManager) CreateChannel() (*amqp.Channel, error) {
 	var err error

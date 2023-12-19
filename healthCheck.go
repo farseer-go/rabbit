@@ -12,12 +12,10 @@ type healthCheck struct {
 
 func (receiver *healthCheck) Check() (string, error) {
 	manager := newManager(receiver.config)
-
+	defer manager.Close()
+	
 	// 连接
 	err := manager.Open()
-	defer func(conn *amqp.Connection) {
-		_ = conn.Close()
-	}(manager.conn)
 
 	// 创建channel
 	var c *amqp.Channel

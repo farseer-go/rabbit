@@ -54,7 +54,9 @@ func (receiver *rabbitConsumer) Subscribe(queueName string, routingKey string, p
 			})
 			entryMqConsumer.End()
 		}
-		_ = chl.Close()
+		if chl != nil {
+			_ = chl.Close()
+		}
 		// 关闭后，重新调用自己
 		receiver.Subscribe(queueName, routingKey, prefetchCount, consumerHandle)
 	}(chl)
@@ -87,7 +89,9 @@ func (receiver *rabbitConsumer) SubscribeAck(queueName string, routingKey string
 			}
 			entryMqConsumer.End()
 		}
-		_ = chl.Close()
+		if chl != nil {
+			_ = chl.Close()
+		}
 		// 关闭后，重新调用自己
 		receiver.SubscribeAck(queueName, routingKey, prefetchCount, consumerHandle)
 	}(chl)
@@ -241,13 +245,17 @@ func (receiver *rabbitConsumer) createAndBindQueue(chl *amqp.Channel, queueName,
 
 		// 创建队列
 		if err = receiver.manager.CreateQueue(chl, queueName, receiver.manager.config.IsDurable, receiver.manager.config.AutoDelete, nil); err != nil {
-			_ = chl.Close()
+			if chl != nil {
+				_ = chl.Close()
+			}
 			return nil, err
 		}
 
 		// 绑定队列
 		if err = receiver.manager.BindQueue(chl, queueName, routingKey, receiver.manager.config.Exchange, nil); err != nil {
-			_ = chl.Close()
+			if chl != nil {
+				_ = chl.Close()
+			}
 			return nil, err
 		}
 	}
