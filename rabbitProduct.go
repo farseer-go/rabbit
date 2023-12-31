@@ -5,6 +5,7 @@ import (
 	"crypto/md5"
 	"encoding/json"
 	"fmt"
+	"github.com/farseer-go/fs/core"
 	"github.com/farseer-go/fs/flog"
 	amqp "github.com/rabbitmq/amqp091-go"
 	"sync"
