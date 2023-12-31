@@ -5,7 +5,6 @@ import (
 	"crypto/md5"
 	"encoding/json"
 	"fmt"
-	"github.com/farseer-go/fs"
 	"github.com/farseer-go/fs/flog"
 	amqp "github.com/rabbitmq/amqp091-go"
 	"sync"
@@ -160,7 +159,7 @@ func (receiver *rabbitProduct) SendMessage(message []byte, routingKey, messageId
 			DeliveryMode: receiver.deliveryMode,
 			Priority:     priority,
 			MessageId:    messageId,
-			AppId:        fs.AppName,
+			AppId:        core.AppName,
 			Body:         message,
 		})
 
