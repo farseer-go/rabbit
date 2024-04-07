@@ -190,7 +190,7 @@ func (receiver *rabbitConsumer) SubscribeBatchAck(queueName string, routingKey s
 						}
 					}
 				}).CatchException(func(exp any) {
-					entryMqConsumer.Error(flog.Errorf("rabbit：SubscribeBatchAck exception:%s", exp))
+					entryMqConsumer.Error(flog.Errorf("rabbit：SubscribeBatchAck exception %s:%s", queueName, exp))
 				})
 				if !isSuccess {
 					// Nack
