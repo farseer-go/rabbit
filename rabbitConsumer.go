@@ -2,6 +2,7 @@ package rabbit
 
 import (
 	"github.com/farseer-go/collections"
+	"github.com/farseer-go/fs/asyncLocal"
 	"github.com/farseer-go/fs/exception"
 	"github.com/farseer-go/fs/flog"
 	amqp "github.com/rabbitmq/amqp091-go"
@@ -54,6 +55,7 @@ func (receiver *rabbitConsumer) Subscribe(queueName string, routingKey string, p
 			}
 			// 读取通道的消息
 			for page := range deliveries {
+				asyncLocal.GC()
 				entryMqConsumer := receiver.manager.traceManager.EntryMqConsumer(receiver.manager.config.Server, queueName, receiver.manager.config.RoutingKey)
 				args := receiver.createEventArgs(page, queueName)
 				exception.Try(func() {
@@ -85,6 +87,7 @@ func (receiver *rabbitConsumer) SubscribeAck(queueName string, routingKey string
 			}
 			// 读取通道的消息
 			for page := range deliveries {
+				asyncLocal.GC()
 				entryMqConsumer := receiver.manager.traceManager.EntryMqConsumer(receiver.manager.config.Server, queueName, receiver.manager.config.RoutingKey)
 				args := receiver.createEventArgs(page, queueName)
 				isSuccess := false
@@ -127,6 +130,7 @@ func (receiver *rabbitConsumer) SubscribeBatch(queueName string, routingKey stri
 	go func() {
 		var chl *amqp.Channel
 		for {
+			asyncLocal.GC()
 			time.Sleep(500 * time.Millisecond)
 			entryMqConsumer := receiver.manager.traceManager.EntryMqConsumer(receiver.manager.config.Server, queueName, receiver.manager.config.RoutingKey)
 			// 创建一个连接和通道
@@ -166,6 +170,7 @@ func (receiver *rabbitConsumer) SubscribeBatchAck(queueName string, routingKey s
 	go func() {
 		var chl *amqp.Channel
 		for {
+			asyncLocal.GC()
 			time.Sleep(100 * time.Millisecond)
 			entryMqConsumer := receiver.manager.traceManager.EntryMqConsumer(receiver.manager.config.Server, queueName, receiver.manager.config.RoutingKey)
 			// 创建一个连接和通道
