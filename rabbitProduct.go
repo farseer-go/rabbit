@@ -148,7 +148,6 @@ func (receiver *rabbitProduct) SendMessage(message []byte, routingKey, messageId
 	defer func(rabbitChl rabbitChannel) {
 		receiver.pushChannel(rabbitChl)
 	}(rabbitChl)
-
 	// 发布消息
 	err := rabbitChl.chl.PublishWithContext(context.Background(),
 		receiver.manager.config.Exchange, // exchange
@@ -156,12 +155,13 @@ func (receiver *rabbitProduct) SendMessage(message []byte, routingKey, messageId
 		false,                            // mandatory
 		false,                            // immediate
 		amqp.Publishing{
-			Headers:      nil,
-			DeliveryMode: receiver.deliveryMode,
-			Priority:     priority,
-			MessageId:    messageId,
-			AppId:        core.AppName,
-			Body:         message,
+			Headers:       nil,
+			DeliveryMode:  receiver.deliveryMode,
+			Priority:      priority,
+			MessageId:     messageId,
+			Body:          message,
+			AppId:         core.AppName,
+			CorrelationId: receiver.manager.traceManager.GetTraceId(),
 		})
 
 	defer func() { traceDetailMq.End(err) }()

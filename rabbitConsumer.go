@@ -56,7 +56,7 @@ func (receiver *rabbitConsumer) Subscribe(queueName string, routingKey string, p
 			// 读取通道的消息
 			for page := range deliveries {
 				asyncLocal.GC()
-				entryMqConsumer := receiver.manager.traceManager.EntryMqConsumer(receiver.manager.config.Server, queueName, receiver.manager.config.RoutingKey)
+				entryMqConsumer := receiver.manager.traceManager.EntryMqConsumer(page.CorrelationId, page.AppId, receiver.manager.config.Server, queueName, receiver.manager.config.RoutingKey)
 				args := receiver.createEventArgs(page, queueName)
 				exception.Try(func() {
 					consumerHandle(string(page.Body), args)
@@ -88,7 +88,7 @@ func (receiver *rabbitConsumer) SubscribeAck(queueName string, routingKey string
 			// 读取通道的消息
 			for page := range deliveries {
 				asyncLocal.GC()
-				entryMqConsumer := receiver.manager.traceManager.EntryMqConsumer(receiver.manager.config.Server, queueName, receiver.manager.config.RoutingKey)
+				entryMqConsumer := receiver.manager.traceManager.EntryMqConsumer(page.CorrelationId, page.AppId, receiver.manager.config.Server, queueName, receiver.manager.config.RoutingKey)
 				args := receiver.createEventArgs(page, queueName)
 				isSuccess := false
 				exception.Try(func() {
@@ -132,10 +132,10 @@ func (receiver *rabbitConsumer) SubscribeBatch(queueName string, routingKey stri
 		for {
 			asyncLocal.GC()
 			time.Sleep(500 * time.Millisecond)
-			entryMqConsumer := receiver.manager.traceManager.EntryMqConsumer(receiver.manager.config.Server, queueName, receiver.manager.config.RoutingKey)
 			// 创建一个连接和通道
 			var err error
 			if chl == nil || chl.IsClosed() {
+				entryMqConsumer := receiver.manager.traceManager.EntryMqConsumer("", "", receiver.manager.config.Server, queueName, receiver.manager.config.RoutingKey)
 				if chl, err = receiver.manager.CreateChannel(); err != nil {
 					entryMqConsumer.Error(err)
 					entryMqConsumer.End()
@@ -145,6 +145,7 @@ func (receiver *rabbitConsumer) SubscribeBatch(queueName string, routingKey stri
 			}
 
 			lst, _ := receiver.pullBatch(queueName, true, pullCount, chl)
+			entryMqConsumer := receiver.manager.traceManager.EntryMqConsumer("", "", receiver.manager.config.Server, queueName, receiver.manager.config.RoutingKey)
 			if lst.Count() > 0 {
 				exception.Try(func() {
 					consumerHandle(lst)
@@ -172,10 +173,10 @@ func (receiver *rabbitConsumer) SubscribeBatchAck(queueName string, routingKey s
 		for {
 			asyncLocal.GC()
 			time.Sleep(100 * time.Millisecond)
-			entryMqConsumer := receiver.manager.traceManager.EntryMqConsumer(receiver.manager.config.Server, queueName, receiver.manager.config.RoutingKey)
 			// 创建一个连接和通道
 			var err error
 			if chl == nil || chl.IsClosed() {
+				entryMqConsumer := receiver.manager.traceManager.EntryMqConsumer("", "", receiver.manager.config.Server, queueName, receiver.manager.config.RoutingKey)
 				if chl, err = receiver.manager.CreateChannel(); err != nil {
 					entryMqConsumer.Error(err)
 					entryMqConsumer.End()
@@ -185,6 +186,7 @@ func (receiver *rabbitConsumer) SubscribeBatchAck(queueName string, routingKey s
 			}
 
 			lst, lastPage := receiver.pullBatch(queueName, false, pullCount, chl)
+			entryMqConsumer := receiver.manager.traceManager.EntryMqConsumer("", "", receiver.manager.config.Server, queueName, receiver.manager.config.RoutingKey)
 			if lst.Count() > 0 {
 				isSuccess := false
 				exception.Try(func() {
@@ -226,7 +228,6 @@ func (receiver *rabbitConsumer) createEventArgs(page amqp.Delivery, queueName st
 		ContentEncoding: page.ContentEncoding,
 		DeliveryMode:    page.DeliveryMode,
 		Priority:        page.Priority,
-		CorrelationId:   page.CorrelationId,
 		ReplyTo:         page.ReplyTo,
 		Expiration:      page.Expiration,
 		MessageId:       page.MessageId,
@@ -234,6 +235,7 @@ func (receiver *rabbitConsumer) createEventArgs(page amqp.Delivery, queueName st
 		Type:            page.Type,
 		UserId:          page.UserId,
 		AppId:           page.AppId,
+		CorrelationId:   page.CorrelationId,
 		MessageCount:    page.MessageCount,
 	}
 }
