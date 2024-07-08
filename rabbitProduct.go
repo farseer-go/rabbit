@@ -50,11 +50,9 @@ func (receiver *rabbitProduct) popChannel() rabbitChannel {
 		receiver.init()
 	}
 
-	timer := time.NewTimer(10 * time.Millisecond)
 	for {
-		timer.Reset(10 * time.Millisecond)
 		select {
-		case <-timer.C:
+		case <-time.NewTimer(10 * time.Millisecond).C:
 			if receiver.workChannelCount >= receiver.manager.config.MaxChannel {
 				continue
 			}
@@ -78,11 +76,13 @@ func (receiver *rabbitProduct) init() {
 	receiver.workChannelCount = 0
 	receiver.chlQueue = make(chan rabbitChannel, 2048)
 	// 按最低channel要求，创建指定数量的channel
-	for len(receiver.chlQueue) < receiver.manager.config.MinChannel {
-		if channel := receiver.createChannelAndConfirm(); channel.chl != nil && !channel.chl.IsClosed() {
-			receiver.chlQueue <- channel
+	go func() {
+		for len(receiver.chlQueue) < receiver.manager.config.MinChannel {
+			if channel := receiver.createChannelAndConfirm(); channel.chl != nil && !channel.chl.IsClosed() {
+				receiver.chlQueue <- channel
+			}
 		}
-	}
+	}()
 }
 
 // 创建通道
