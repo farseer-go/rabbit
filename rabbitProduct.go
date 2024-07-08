@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"github.com/farseer-go/fs/core"
 	"github.com/farseer-go/fs/flog"
+	"github.com/farseer-go/fs/parse"
 	amqp "github.com/rabbitmq/amqp091-go"
 	"sync"
 	"sync/atomic"
@@ -77,7 +78,7 @@ func (receiver *rabbitProduct) init() {
 	receiver.chlQueue = make(chan rabbitChannel, 2048)
 	// 按最低channel要求，创建指定数量的channel
 	go func() {
-		for len(receiver.chlQueue) < receiver.manager.config.MinChannel {
+		for (len(receiver.chlQueue) + parse.ToInt(receiver.workChannelCount)) < receiver.manager.config.MinChannel {
 			if channel := receiver.createChannelAndConfirm(); channel.chl != nil && !channel.chl.IsClosed() {
 				receiver.chlQueue <- channel
 			}
