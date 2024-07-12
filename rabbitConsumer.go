@@ -5,6 +5,7 @@ import (
 	"github.com/farseer-go/fs/asyncLocal"
 	"github.com/farseer-go/fs/exception"
 	"github.com/farseer-go/fs/flog"
+	"github.com/farseer-go/fs/trace"
 	amqp "github.com/rabbitmq/amqp091-go"
 	"time"
 )
@@ -197,6 +198,9 @@ func (receiver *rabbitConsumer) SubscribeBatchAck(queueName string, routingKey s
 						}
 					}
 				}).CatchException(func(exp any) {
+					if file, funcName, line := trace.GetCallerInfo(); file != "" {
+						_ = flog.Errorf("%s:%s %s \n", file, flog.Blue(line), funcName)
+					}
 					entryMqConsumer.Error(flog.Errorf("rabbit：SubscribeBatchAck exception %s:%s", queueName, exp))
 				})
 				if !isSuccess {
