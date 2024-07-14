@@ -187,8 +187,8 @@ func (receiver *rabbitConsumer) SubscribeBatchAck(queueName string, routingKey s
 			}
 
 			lst, lastPage := receiver.pullBatch(queueName, false, pullCount, chl)
-			entryMqConsumer := receiver.manager.traceManager.EntryMqConsumer("", "", receiver.manager.config.Server, queueName, receiver.manager.config.RoutingKey)
 			if lst.Count() > 0 {
+				entryMqConsumer := receiver.manager.traceManager.EntryMqConsumer("", "", receiver.manager.config.Server, queueName, receiver.manager.config.RoutingKey)
 				isSuccess := false
 				exception.Try(func() {
 					isSuccess = consumerHandle(lst)

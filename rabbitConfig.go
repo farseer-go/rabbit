@@ -4,7 +4,7 @@ type rabbitConfig struct {
 	Server     string // 服务端地址
 	UserName   string // 用户名
 	Password   string // 密码
-	MinChannel int    // 最低保持多少个频道
+	MinChannel int32  // 最低保持多少个频道
 	MaxChannel int32  // 最多可以创建多少个频道
 	Exchange   string // 交换器名称
 	RoutingKey string // 路由KEY

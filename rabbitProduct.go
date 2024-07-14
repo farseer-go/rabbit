@@ -75,10 +75,10 @@ func (receiver *rabbitProduct) popChannel() rabbitChannel {
 func (receiver *rabbitProduct) init() {
 	// 首次使用
 	receiver.workChannelCount = 0
-	receiver.chlQueue = make(chan rabbitChannel, 2048)
+	receiver.chlQueue = make(chan rabbitChannel, receiver.manager.config.MaxChannel)
 	// 按最低channel要求，创建指定数量的channel
 	go func() {
-		for (len(receiver.chlQueue) + parse.ToInt(receiver.workChannelCount)) < receiver.manager.config.MinChannel {
+		for (len(receiver.chlQueue) + parse.ToInt(receiver.workChannelCount)) < parse.ToInt(receiver.manager.config.MinChannel) {
 			if channel := receiver.createChannelAndConfirm(); channel.chl != nil && !channel.chl.IsClosed() {
 				receiver.chlQueue <- channel
 			}
@@ -149,6 +149,7 @@ func (receiver *rabbitProduct) SendMessage(message []byte, routingKey, messageId
 	defer func(rabbitChl rabbitChannel) {
 		receiver.pushChannel(rabbitChl)
 	}(rabbitChl)
+
 	// 发布消息
 	err := rabbitChl.chl.PublishWithContext(context.Background(),
 		receiver.manager.config.Exchange, // exchange

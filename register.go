@@ -20,6 +20,9 @@ func Register(key string, configString string) {
 		config.MinChannel = 10
 	}
 
+	if config.MinChannel > config.MaxChannel {
+		config.MaxChannel = config.MinChannel
+	}
 	if config.Exchange == "" {
 		_ = flog.Errorf("Rabbit配置：%s 缺少ExchangeName", config.Server)
 		return
