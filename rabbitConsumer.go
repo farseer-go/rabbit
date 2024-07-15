@@ -56,7 +56,6 @@ func (receiver *rabbitConsumer) Subscribe(queueName string, routingKey string, p
 			}
 			// 读取通道的消息
 			for page := range deliveries {
-				asyncLocal.Release()
 				entryMqConsumer := receiver.manager.traceManager.EntryMqConsumer(page.CorrelationId, page.AppId, receiver.manager.config.Server, queueName, receiver.manager.config.RoutingKey)
 				args := receiver.createEventArgs(page, queueName)
 				exception.Try(func() {
@@ -65,6 +64,7 @@ func (receiver *rabbitConsumer) Subscribe(queueName string, routingKey string, p
 					entryMqConsumer.Error(flog.Errorf("rabbit：Subscribe exception:%s", exp))
 				})
 				entryMqConsumer.End()
+				asyncLocal.Release()
 			}
 			// 通道关闭了
 			if chl != nil {
@@ -88,7 +88,6 @@ func (receiver *rabbitConsumer) SubscribeAck(queueName string, routingKey string
 			}
 			// 读取通道的消息
 			for page := range deliveries {
-				asyncLocal.Release()
 				entryMqConsumer := receiver.manager.traceManager.EntryMqConsumer(page.CorrelationId, page.AppId, receiver.manager.config.Server, queueName, receiver.manager.config.RoutingKey)
 				args := receiver.createEventArgs(page, queueName)
 				isSuccess := false
@@ -108,6 +107,7 @@ func (receiver *rabbitConsumer) SubscribeAck(queueName string, routingKey string
 					}
 				}
 				entryMqConsumer.End()
+				asyncLocal.Release()
 			}
 			// 通道关闭了
 			if chl != nil {
@@ -131,7 +131,6 @@ func (receiver *rabbitConsumer) SubscribeBatch(queueName string, routingKey stri
 	go func() {
 		var chl *amqp.Channel
 		for {
-			asyncLocal.Release()
 			time.Sleep(500 * time.Millisecond)
 			// 创建一个连接和通道
 			var err error
@@ -145,9 +144,8 @@ func (receiver *rabbitConsumer) SubscribeBatch(queueName string, routingKey stri
 				}
 			}
 
-			lst, _ := receiver.pullBatch(queueName, true, pullCount, chl)
-			entryMqConsumer := receiver.manager.traceManager.EntryMqConsumer("", "", receiver.manager.config.Server, queueName, receiver.manager.config.RoutingKey)
-			if lst.Count() > 0 {
+			if lst, _ := receiver.pullBatch(queueName, true, pullCount, chl); lst.Count() > 0 {
+				entryMqConsumer := receiver.manager.traceManager.EntryMqConsumer("", "", receiver.manager.config.Server, queueName, receiver.manager.config.RoutingKey)
 				exception.Try(func() {
 					consumerHandle(lst)
 				}).CatchException(func(exp any) {
@@ -156,6 +154,7 @@ func (receiver *rabbitConsumer) SubscribeBatch(queueName string, routingKey stri
 				// 数量大于0，才追踪
 				entryMqConsumer.End()
 			}
+			asyncLocal.Release()
 		}
 	}()
 }
@@ -172,7 +171,6 @@ func (receiver *rabbitConsumer) SubscribeBatchAck(queueName string, routingKey s
 	go func() {
 		var chl *amqp.Channel
 		for {
-			asyncLocal.Release()
 			time.Sleep(100 * time.Millisecond)
 			// 创建一个连接和通道
 			var err error
@@ -186,8 +184,7 @@ func (receiver *rabbitConsumer) SubscribeBatchAck(queueName string, routingKey s
 				}
 			}
 
-			lst, lastPage := receiver.pullBatch(queueName, false, pullCount, chl)
-			if lst.Count() > 0 {
+			if lst, lastPage := receiver.pullBatch(queueName, false, pullCount, chl); lst.Count() > 0 {
 				entryMqConsumer := receiver.manager.traceManager.EntryMqConsumer("", "", receiver.manager.config.Server, queueName, receiver.manager.config.RoutingKey)
 				isSuccess := false
 				exception.Try(func() {
@@ -212,6 +209,7 @@ func (receiver *rabbitConsumer) SubscribeBatchAck(queueName string, routingKey s
 				// 数量大于0，才追踪
 				entryMqConsumer.End()
 			}
+			asyncLocal.Release()
 		}
 	}()
 }
