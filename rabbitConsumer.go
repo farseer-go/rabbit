@@ -1,7 +1,9 @@
 package rabbit
 
 import (
+	"fmt"
 	"github.com/farseer-go/collections"
+	"github.com/farseer-go/fs"
 	"github.com/farseer-go/fs/asyncLocal"
 	"github.com/farseer-go/fs/exception"
 	"github.com/farseer-go/fs/flog"
@@ -45,78 +47,82 @@ func (receiver *rabbitConsumer) createQueueAndBindAndConsume(queueName, routingK
 }
 
 func (receiver *rabbitConsumer) Subscribe(queueName string, routingKey string, prefetchCount int, consumerHandle func(message string, ea EventArgs)) {
-	go func() {
-		for {
-			// 创建一个连接和通道
-			chl, deliveries, err := receiver.createQueueAndBindAndConsume(queueName, routingKey, prefetchCount, true)
-			if err != nil {
-				// 3秒后重试
-				time.Sleep(3 * time.Second)
-				continue
+	fs.AddInitCallback(fmt.Sprintf("rabbit.Subscribe消费，队列：%s，routingKey：%s，预读数量：%d", queueName, routingKey, prefetchCount), func() {
+		go func() {
+			for {
+				// 创建一个连接和通道
+				chl, deliveries, err := receiver.createQueueAndBindAndConsume(queueName, routingKey, prefetchCount, true)
+				if err != nil {
+					// 3秒后重试
+					time.Sleep(3 * time.Second)
+					continue
+				}
+				// 读取通道的消息
+				for page := range deliveries {
+					entryMqConsumer := receiver.manager.traceManager.EntryMqConsumer(page.CorrelationId, page.AppId, receiver.manager.config.Server, queueName, receiver.manager.config.RoutingKey)
+					args := receiver.createEventArgs(page, queueName)
+					exception.Try(func() {
+						consumerHandle(string(page.Body), args)
+					}).CatchException(func(exp any) {
+						entryMqConsumer.Error(flog.Errorf("rabbit：Subscribe exception:%s", exp))
+					})
+					entryMqConsumer.End()
+					asyncLocal.Release()
+				}
+				// 通道关闭了
+				if chl != nil {
+					_ = chl.Close()
+				}
+				// 1秒后重试
+				time.Sleep(1 * time.Second)
 			}
-			// 读取通道的消息
-			for page := range deliveries {
-				entryMqConsumer := receiver.manager.traceManager.EntryMqConsumer(page.CorrelationId, page.AppId, receiver.manager.config.Server, queueName, receiver.manager.config.RoutingKey)
-				args := receiver.createEventArgs(page, queueName)
-				exception.Try(func() {
-					consumerHandle(string(page.Body), args)
-				}).CatchException(func(exp any) {
-					entryMqConsumer.Error(flog.Errorf("rabbit：Subscribe exception:%s", exp))
-				})
-				entryMqConsumer.End()
-				asyncLocal.Release()
-			}
-			// 通道关闭了
-			if chl != nil {
-				_ = chl.Close()
-			}
-			// 1秒后重试
-			time.Sleep(1 * time.Second)
-		}
-	}()
+		}()
+	})
 }
 
 func (receiver *rabbitConsumer) SubscribeAck(queueName string, routingKey string, prefetchCount int, consumerHandle func(message string, ea EventArgs) bool) {
-	go func() {
-		for {
-			// 创建一个连接和通道
-			chl, deliveries, err := receiver.createQueueAndBindAndConsume(queueName, routingKey, prefetchCount, false)
-			if err != nil {
-				// 3秒后重试
-				time.Sleep(3 * time.Second)
-				continue
-			}
-			// 读取通道的消息
-			for page := range deliveries {
-				entryMqConsumer := receiver.manager.traceManager.EntryMqConsumer(page.CorrelationId, page.AppId, receiver.manager.config.Server, queueName, receiver.manager.config.RoutingKey)
-				args := receiver.createEventArgs(page, queueName)
-				isSuccess := false
-				exception.Try(func() {
-					if isSuccess = consumerHandle(string(page.Body), args); isSuccess {
-						if err = page.Ack(false); err != nil {
-							_ = flog.Errorf("rabbit：SubscribeAck failed to Ack q=%s: %s %s", queueName, err, string(page.Body))
+	fs.AddInitCallback(fmt.Sprintf("rabbit.SubscribeAck消费，队列：%s，routingKey：%s，预读数量：%d", queueName, routingKey, prefetchCount), func() {
+		go func() {
+			for {
+				// 创建一个连接和通道
+				chl, deliveries, err := receiver.createQueueAndBindAndConsume(queueName, routingKey, prefetchCount, false)
+				if err != nil {
+					// 3秒后重试
+					time.Sleep(3 * time.Second)
+					continue
+				}
+				// 读取通道的消息
+				for page := range deliveries {
+					entryMqConsumer := receiver.manager.traceManager.EntryMqConsumer(page.CorrelationId, page.AppId, receiver.manager.config.Server, queueName, receiver.manager.config.RoutingKey)
+					args := receiver.createEventArgs(page, queueName)
+					isSuccess := false
+					exception.Try(func() {
+						if isSuccess = consumerHandle(string(page.Body), args); isSuccess {
+							if err = page.Ack(false); err != nil {
+								_ = flog.Errorf("rabbit：SubscribeAck failed to Ack q=%s: %s %s", queueName, err, string(page.Body))
+							}
+						}
+					}).CatchException(func(exp any) {
+						entryMqConsumer.Error(flog.Errorf("rabbit：SubscribeAck exception: q=%s err:%s", queueName, exp))
+					})
+					if !isSuccess {
+						// Nack
+						if err = page.Nack(false, true); err != nil {
+							entryMqConsumer.Error(flog.Errorf("rabbit：SubscribeAck failed to Nack %s: q=%s %s", queueName, err, string(page.Body)))
 						}
 					}
-				}).CatchException(func(exp any) {
-					entryMqConsumer.Error(flog.Errorf("rabbit：SubscribeAck exception: q=%s err:%s", queueName, exp))
-				})
-				if !isSuccess {
-					// Nack
-					if err = page.Nack(false, true); err != nil {
-						entryMqConsumer.Error(flog.Errorf("rabbit：SubscribeAck failed to Nack %s: q=%s %s", queueName, err, string(page.Body)))
-					}
+					entryMqConsumer.End()
+					asyncLocal.Release()
 				}
-				entryMqConsumer.End()
-				asyncLocal.Release()
+				// 通道关闭了
+				if chl != nil {
+					_ = chl.Close()
+				}
+				// 1秒后重试
+				time.Sleep(1 * time.Second)
 			}
-			// 通道关闭了
-			if chl != nil {
-				_ = chl.Close()
-			}
-			// 1秒后重试
-			time.Sleep(1 * time.Second)
-		}
-	}()
+		}()
+	})
 }
 
 func (receiver *rabbitConsumer) SubscribeBatch(queueName string, routingKey string, pullCount int, consumerHandle func(messages collections.List[EventArgs])) {
@@ -128,35 +134,37 @@ func (receiver *rabbitConsumer) SubscribeBatch(queueName string, routingKey stri
 		panic(err)
 	}
 
-	go func() {
-		var chl *amqp.Channel
-		for {
-			time.Sleep(500 * time.Millisecond)
-			// 创建一个连接和通道
-			var err error
-			if chl == nil || chl.IsClosed() {
-				entryMqConsumer := receiver.manager.traceManager.EntryMqConsumer("", "", receiver.manager.config.Server, queueName, receiver.manager.config.RoutingKey)
-				if chl, err = receiver.manager.CreateChannel(); err != nil {
-					entryMqConsumer.Error(err)
-					entryMqConsumer.End()
-					_ = flog.Error(err)
-					continue
+	fs.AddInitCallback(fmt.Sprintf("rabbit.SubscribeBatch消费，队列：%s，routingKey：%s，每次拉取数量：%d", queueName, routingKey, pullCount), func() {
+		go func() {
+			var chl *amqp.Channel
+			for {
+				time.Sleep(500 * time.Millisecond)
+				// 创建一个连接和通道
+				var err error
+				if chl == nil || chl.IsClosed() {
+					entryMqConsumer := receiver.manager.traceManager.EntryMqConsumer("", "", receiver.manager.config.Server, queueName, receiver.manager.config.RoutingKey)
+					if chl, err = receiver.manager.CreateChannel(); err != nil {
+						entryMqConsumer.Error(err)
+						entryMqConsumer.End()
+						_ = flog.Error(err)
+						continue
+					}
 				}
-			}
 
-			if lst, _ := receiver.pullBatch(queueName, true, pullCount, chl); lst.Count() > 0 {
-				entryMqConsumer := receiver.manager.traceManager.EntryMqConsumer("", "", receiver.manager.config.Server, queueName, receiver.manager.config.RoutingKey)
-				exception.Try(func() {
-					consumerHandle(lst)
-				}).CatchException(func(exp any) {
-					entryMqConsumer.Error(flog.Errorf("rabbit：SubscribeBatch exception:%s", exp))
-				})
-				// 数量大于0，才追踪
-				entryMqConsumer.End()
+				if lst, _ := receiver.pullBatch(queueName, true, pullCount, chl); lst.Count() > 0 {
+					entryMqConsumer := receiver.manager.traceManager.EntryMqConsumer("", "", receiver.manager.config.Server, queueName, receiver.manager.config.RoutingKey)
+					exception.Try(func() {
+						consumerHandle(lst)
+					}).CatchException(func(exp any) {
+						entryMqConsumer.Error(flog.Errorf("rabbit：SubscribeBatch exception:%s", exp))
+					})
+					// 数量大于0，才追踪
+					entryMqConsumer.End()
+				}
+				asyncLocal.Release()
 			}
-			asyncLocal.Release()
-		}
-	}()
+		}()
+	})
 }
 
 func (receiver *rabbitConsumer) SubscribeBatchAck(queueName string, routingKey string, pullCount int, consumerHandle func(messages collections.List[EventArgs]) bool) {
@@ -168,50 +176,52 @@ func (receiver *rabbitConsumer) SubscribeBatchAck(queueName string, routingKey s
 		panic(err)
 	}
 
-	go func() {
-		var chl *amqp.Channel
-		for {
-			time.Sleep(100 * time.Millisecond)
-			// 创建一个连接和通道
-			var err error
-			if chl == nil || chl.IsClosed() {
-				entryMqConsumer := receiver.manager.traceManager.EntryMqConsumer("", "", receiver.manager.config.Server, queueName, receiver.manager.config.RoutingKey)
-				if chl, err = receiver.manager.CreateChannel(); err != nil {
-					entryMqConsumer.Error(err)
-					entryMqConsumer.End()
-					_ = flog.Error(err)
-					continue
+	fs.AddInitCallback(fmt.Sprintf("rabbit.SubscribeBatchAck消费，队列：%s，routingKey：%s，每次拉取数量：%d", queueName, routingKey, pullCount), func() {
+		go func() {
+			var chl *amqp.Channel
+			for {
+				time.Sleep(100 * time.Millisecond)
+				// 创建一个连接和通道
+				var err error
+				if chl == nil || chl.IsClosed() {
+					entryMqConsumer := receiver.manager.traceManager.EntryMqConsumer("", "", receiver.manager.config.Server, queueName, receiver.manager.config.RoutingKey)
+					if chl, err = receiver.manager.CreateChannel(); err != nil {
+						entryMqConsumer.Error(err)
+						entryMqConsumer.End()
+						_ = flog.Error(err)
+						continue
+					}
 				}
-			}
 
-			if lst, lastPage := receiver.pullBatch(queueName, false, pullCount, chl); lst.Count() > 0 {
-				entryMqConsumer := receiver.manager.traceManager.EntryMqConsumer("", "", receiver.manager.config.Server, queueName, receiver.manager.config.RoutingKey)
-				isSuccess := false
-				exception.Try(func() {
-					isSuccess = consumerHandle(lst)
-					if isSuccess {
-						if err := lastPage.Ack(true); err != nil {
-							entryMqConsumer.Error(flog.Errorf("rabbit：SubscribeBatchAck failed to Ack %s: %s", queueName, err))
+				if lst, lastPage := receiver.pullBatch(queueName, false, pullCount, chl); lst.Count() > 0 {
+					entryMqConsumer := receiver.manager.traceManager.EntryMqConsumer("", "", receiver.manager.config.Server, queueName, receiver.manager.config.RoutingKey)
+					isSuccess := false
+					exception.Try(func() {
+						isSuccess = consumerHandle(lst)
+						if isSuccess {
+							if err := lastPage.Ack(true); err != nil {
+								entryMqConsumer.Error(flog.Errorf("rabbit：SubscribeBatchAck failed to Ack %s: %s", queueName, err))
+							}
+						}
+					}).CatchException(func(exp any) {
+						if file, funcName, line := trace.GetCallerInfo(); file != "" {
+							_ = flog.Errorf("%s:%s %s \n", file, flog.Blue(line), funcName)
+						}
+						entryMqConsumer.Error(flog.Errorf("rabbit：SubscribeBatchAck exception %s:%s", queueName, exp))
+					})
+					if !isSuccess {
+						// Nack
+						if err := lastPage.Nack(true, true); err != nil {
+							entryMqConsumer.Error(flog.Errorf("rabbit：SubscribeBatchAck failed to Nack %s: %s", queueName, err))
 						}
 					}
-				}).CatchException(func(exp any) {
-					if file, funcName, line := trace.GetCallerInfo(); file != "" {
-						_ = flog.Errorf("%s:%s %s \n", file, flog.Blue(line), funcName)
-					}
-					entryMqConsumer.Error(flog.Errorf("rabbit：SubscribeBatchAck exception %s:%s", queueName, exp))
-				})
-				if !isSuccess {
-					// Nack
-					if err := lastPage.Nack(true, true); err != nil {
-						entryMqConsumer.Error(flog.Errorf("rabbit：SubscribeBatchAck failed to Nack %s: %s", queueName, err))
-					}
+					// 数量大于0，才追踪
+					entryMqConsumer.End()
 				}
-				// 数量大于0，才追踪
-				entryMqConsumer.End()
+				asyncLocal.Release()
 			}
-			asyncLocal.Release()
-		}
-	}()
+		}()
+	})
 }
 
 // 生成事件参数
