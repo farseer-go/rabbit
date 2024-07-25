@@ -55,9 +55,11 @@ func (receiver *rabbitProduct) popChannel() rabbitChannel {
 		select {
 		case <-time.NewTimer(10 * time.Millisecond).C:
 			if receiver.workChannelCount >= receiver.manager.config.MaxChannel {
+				flog.Infof("workChannelCount=%d",receiver.workChannelCount)
 				continue
 			}
 			if chl := receiver.createChannelAndConfirm(); chl.err == nil {
+				flog.Infof("createChannelAndConfirm")
 				return chl
 			}
 		case rabbitChl := <-receiver.chlQueue:
