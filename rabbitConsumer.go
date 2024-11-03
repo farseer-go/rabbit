@@ -2,6 +2,8 @@ package rabbit
 
 import (
 	"fmt"
+	"time"
+
 	"github.com/farseer-go/collections"
 	"github.com/farseer-go/fs"
 	"github.com/farseer-go/fs/asyncLocal"
@@ -9,7 +11,6 @@ import (
 	"github.com/farseer-go/fs/flog"
 	"github.com/farseer-go/fs/trace"
 	amqp "github.com/rabbitmq/amqp091-go"
-	"time"
 )
 
 type rabbitConsumer struct {
@@ -87,10 +88,12 @@ func (receiver *rabbitConsumer) SubscribeAck(queueName string, routingKey string
 				// 创建一个连接和通道
 				chl, deliveries, err := receiver.createQueueAndBindAndConsume(queueName, routingKey, prefetchCount, false)
 				if err != nil {
+					flog.Errorf("rabbit.SubscribeAck 创建通道时失败，3秒后重试：%s", err.Error())
 					// 3秒后重试
 					time.Sleep(3 * time.Second)
 					continue
 				}
+
 				// 读取通道的消息
 				for page := range deliveries {
 					entryMqConsumer := receiver.manager.traceManager.EntryMqConsumer(page.CorrelationId, page.AppId, receiver.manager.config.Server, queueName, receiver.manager.config.RoutingKey)
@@ -275,6 +278,9 @@ func (receiver *rabbitConsumer) createAndBindQueue(chl *amqp.Channel, queueName,
 	if chl == nil || chl.IsClosed() {
 		// 创建一个连接和通道
 		if chl, err = receiver.manager.CreateChannel(); err != nil {
+			if chl != nil {
+				_ = chl.Close()
+			}
 			return chl, err
 		}
 
