@@ -3,15 +3,16 @@ package rabbit
 import (
 	"context"
 	"crypto/md5"
-	"encoding/json"
 	"fmt"
+	"sync"
+	"sync/atomic"
+	"time"
+
+	"github.com/bytedance/sonic"
 	"github.com/farseer-go/fs/core"
 	"github.com/farseer-go/fs/flog"
 	"github.com/farseer-go/fs/parse"
 	amqp "github.com/rabbitmq/amqp091-go"
-	"sync"
-	"sync/atomic"
-	"time"
 )
 
 type rabbitProduct struct {
@@ -126,7 +127,7 @@ func (receiver *rabbitProduct) SendString(message string) error {
 
 // SendJson 发送消息，将data序列化成json（使用配置设置）
 func (receiver *rabbitProduct) SendJson(data any) error {
-	message, _ := json.Marshal(data)
+	message, _ := sonic.Marshal(data)
 	messageId := fmt.Sprintf("%x", md5.Sum(message))
 	return receiver.SendMessage(message, receiver.manager.config.RoutingKey, messageId, 0)
 }
@@ -139,7 +140,7 @@ func (receiver *rabbitProduct) SendStringKey(message, routingKey string) error {
 
 // SendJsonKey 发送消息（使用配置设置）
 func (receiver *rabbitProduct) SendJsonKey(data any, routingKey string) error {
-	message, _ := json.Marshal(data)
+	message, _ := sonic.Marshal(data)
 	messageId := fmt.Sprintf("%x", md5.Sum(message))
 	return receiver.SendMessage(message, routingKey, messageId, 0)
 }
