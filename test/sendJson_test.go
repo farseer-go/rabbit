@@ -4,8 +4,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/bytedance/sonic"
 	"github.com/farseer-go/fs/container"
+	"github.com/farseer-go/fs/snc"
 	"github.com/farseer-go/rabbit"
 	"github.com/stretchr/testify/assert"
 )
@@ -16,7 +16,7 @@ func TestSendJson(t *testing.T) {
 	// 手动ACK
 	consumer.SubscribeAck("TestSingleJsonAck", "Test_Single_Json_Ack", 100, func(message string, ea rabbit.EventArgs) bool {
 		var dic map[string]string
-		_ = sonic.Unmarshal([]byte(message), &dic)
+		_ = snc.Unmarshal([]byte(message), &dic)
 		assert.Equal(t, 1, len(dic))
 
 		r := dic["ack"]
@@ -27,7 +27,7 @@ func TestSendJson(t *testing.T) {
 	// 自动ACK
 	consumer.Subscribe("TestSingleJsonAutoAck", "Test_Single_Json_AutoAck", 100, func(message string, ea rabbit.EventArgs) {
 		var dic map[string]string
-		_ = sonic.Unmarshal([]byte(message), &dic)
+		_ = snc.Unmarshal([]byte(message), &dic)
 		assert.Equal(t, 1, len(dic))
 
 		r := dic["auto_ack"]
