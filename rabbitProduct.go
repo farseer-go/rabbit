@@ -12,6 +12,7 @@ import (
 	"github.com/farseer-go/fs/flog"
 	"github.com/farseer-go/fs/parse"
 	"github.com/farseer-go/fs/snc"
+	"github.com/farseer-go/fs/trace"
 	amqp "github.com/rabbitmq/amqp091-go"
 )
 
@@ -166,7 +167,7 @@ func (receiver *rabbitProduct) SendMessage(message []byte, routingKey, messageId
 			MessageId:     messageId,
 			Body:          message,
 			AppId:         core.AppName,
-			CorrelationId: receiver.manager.traceManager.GetTraceId(),
+			CorrelationId: trace.GetTraceId(),
 		})
 
 	defer func() { traceDetailMq.End(err) }()

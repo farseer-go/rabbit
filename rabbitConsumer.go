@@ -7,6 +7,7 @@ import (
 	"github.com/farseer-go/collections"
 	"github.com/farseer-go/fs"
 	"github.com/farseer-go/fs/asyncLocal"
+	"github.com/farseer-go/fs/container"
 	"github.com/farseer-go/fs/exception"
 	"github.com/farseer-go/fs/flog"
 	"github.com/farseer-go/fs/trace"
@@ -67,7 +68,7 @@ func (receiver *rabbitConsumer) Subscribe(queueName string, routingKey string, p
 					}).CatchException(func(exp any) {
 						err = flog.Errorf("rabbit：Subscribe exception:%s", exp)
 					})
-					entryMqConsumer.End(err)
+					container.Resolve[trace.IManager]().Push(entryMqConsumer, err)
 					asyncLocal.Release()
 				}
 				// 通道关闭了
@@ -113,7 +114,7 @@ func (receiver *rabbitConsumer) SubscribeAck(queueName string, routingKey string
 							err = flog.Errorf("rabbit：SubscribeAck failed to Nack %s: q=%s %s", queueName, err, string(page.Body))
 						}
 					}
-					entryMqConsumer.End(err)
+					container.Resolve[trace.IManager]().Push(entryMqConsumer, err)
 					asyncLocal.Release()
 				}
 
@@ -147,7 +148,7 @@ func (receiver *rabbitConsumer) SubscribeBatch(queueName string, routingKey stri
 				if chl == nil || chl.IsClosed() {
 					entryMqConsumer := receiver.manager.traceManager.EntryMqConsumer("", "", receiver.manager.config.Server, queueName, receiver.manager.config.RoutingKey)
 					if chl, err = receiver.manager.CreateChannel(); err != nil {
-						entryMqConsumer.End(err)
+						container.Resolve[trace.IManager]().Push(entryMqConsumer, err)
 						_ = flog.Error(err)
 						continue
 					}
@@ -161,7 +162,7 @@ func (receiver *rabbitConsumer) SubscribeBatch(queueName string, routingKey stri
 						err = flog.Errorf("rabbit：SubscribeBatch exception:%s", exp)
 					})
 					// 数量大于0，才追踪
-					entryMqConsumer.End(err)
+					container.Resolve[trace.IManager]().Push(entryMqConsumer, err)
 				}
 				asyncLocal.Release()
 			}
@@ -188,7 +189,7 @@ func (receiver *rabbitConsumer) SubscribeBatchAck(queueName string, routingKey s
 				if chl == nil || chl.IsClosed() {
 					entryMqConsumer := receiver.manager.traceManager.EntryMqConsumer("", "", receiver.manager.config.Server, queueName, receiver.manager.config.RoutingKey)
 					if chl, err = receiver.manager.CreateChannel(); err != nil {
-						entryMqConsumer.End(err)
+						container.Resolve[trace.IManager]().Push(entryMqConsumer, err)
 						_ = flog.Error(err)
 						continue
 					}
@@ -217,7 +218,7 @@ func (receiver *rabbitConsumer) SubscribeBatchAck(queueName string, routingKey s
 						}
 					}
 					// 数量大于0，才追踪
-					entryMqConsumer.End(err)
+					container.Resolve[trace.IManager]().Push(entryMqConsumer, err)
 				}
 				asyncLocal.Release()
 			}
