@@ -142,7 +142,7 @@ func (receiver *rabbitConsumer) SubscribeBatch(queueName string, routingKey stri
 		go func() {
 			var chl *amqp.Channel
 			for {
-				time.Sleep(500 * time.Millisecond)
+				time.Sleep(100 * time.Millisecond)
 				// 创建一个连接和通道
 				var err error
 				if chl == nil || chl.IsClosed() {
@@ -171,6 +171,10 @@ func (receiver *rabbitConsumer) SubscribeBatch(queueName string, routingKey stri
 }
 
 func (receiver *rabbitConsumer) SubscribeBatchAck(queueName string, routingKey string, pullCount int, consumerHandle func(messages collections.List[EventArgs]) bool) {
+	receiver.SubscribeBatchAckTime(queueName, routingKey, pullCount, 100*time.Millisecond, consumerHandle)
+}
+
+func (receiver *rabbitConsumer) SubscribeBatchAckTime(queueName string, routingKey string, pullCount int, sleepTime time.Duration, consumerHandle func(messages collections.List[EventArgs]) bool) {
 	if pullCount < 1 {
 		flog.Panicf("rabbit：the parameter pullCount must be greater than 0， %s: %d", queueName, pullCount)
 	}
@@ -183,7 +187,7 @@ func (receiver *rabbitConsumer) SubscribeBatchAck(queueName string, routingKey s
 		go func() {
 			var chl *amqp.Channel
 			for {
-				time.Sleep(100 * time.Millisecond)
+				time.Sleep(sleepTime)
 				// 创建一个连接和通道
 				var err error
 				if chl == nil || chl.IsClosed() {

@@ -1,6 +1,8 @@
 package rabbit
 
 import (
+	"time"
+
 	"github.com/farseer-go/collections"
 )
 
@@ -22,8 +24,17 @@ type IConsumer interface {
 	// SubscribeBatchAck 订阅队列，批量消费，手动ACK
 	// queueName：队列名称
 	// routingKey：路由键
+	// pullCount：每次拉取的消息数量
 	// consumerHandle：消费逻辑
 	SubscribeBatchAck(queueName string, routingKey string, pullCount int, consumerHandle func(messages collections.List[EventArgs]) bool)
+
+	// SubscribeBatchAck 订阅队列，批量消费，手动ACK
+	// queueName：队列名称
+	// routingKey：路由键
+	// pullCount：每次拉取的消息数量
+	// sleepTime：每次休眠时间
+	// consumerHandle：消费逻辑
+	SubscribeBatchAckTime(queueName string, routingKey string, pullCount int, sleepTime time.Duration, consumerHandle func(messages collections.List[EventArgs]) bool)
 
 	// SubscribeBatch 订阅队列，批量消费，自动ACK
 	// queueName：队列名称
