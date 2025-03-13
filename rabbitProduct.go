@@ -8,6 +8,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/farseer-go/fs/container"
 	"github.com/farseer-go/fs/core"
 	"github.com/farseer-go/fs/flog"
 	"github.com/farseer-go/fs/parse"
@@ -141,8 +142,12 @@ func (receiver *rabbitProduct) SendStringKey(message, routingKey string) error {
 
 // SendJsonKey 发送消息（使用配置设置）
 func (receiver *rabbitProduct) SendJsonKey(data any, routingKey string) error {
+	traceTest := container.Resolve[trace.IManager]().TraceHand("snc.Marshal")
 	message, _ := snc.Marshal(data)
+	traceTest.End(nil)
+	traceTest = container.Resolve[trace.IManager]().TraceHand("md5.Sum")
 	messageId := fmt.Sprintf("%x", md5.Sum(message))
+	traceTest.End(nil)
 	return receiver.SendMessage(message, routingKey, messageId, 0)
 }
 
