@@ -1,5 +1,7 @@
 package rabbit
 
+import "github.com/farseer-go/collections"
+
 type IProduct interface {
 	// SendString 发送消息（使用配置设置）
 	SendString(message string) error
@@ -15,4 +17,7 @@ type IProduct interface {
 
 	// SendMessage 发送消息
 	SendMessage(message []byte, routingKey, messageId string, priority uint8) error
+
+	// BatchSendMessage 批量发送消息
+	BatchSendMessage(lstMsg collections.ListAny, routingKey string) error
 }

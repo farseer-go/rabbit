@@ -1,14 +1,16 @@
 package test
 
 import (
-	"github.com/farseer-go/collections"
-	"github.com/farseer-go/fs/container"
-	"github.com/farseer-go/fs/parse"
-	"github.com/farseer-go/rabbit"
-	"github.com/stretchr/testify/assert"
-	"strconv"
 	"testing"
 	"time"
+
+	"github.com/farseer-go/collections"
+	"github.com/farseer-go/fs/container"
+	"github.com/farseer-go/fs/flog"
+	"github.com/farseer-go/fs/parse"
+	"github.com/farseer-go/fs/snc"
+	"github.com/farseer-go/rabbit"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestBatch(t *testing.T) {
@@ -26,7 +28,9 @@ func TestBatch(t *testing.T) {
 	// 手动ACK
 	consumer.SubscribeBatchAck("TestBatchStringAck", "Test_Batch_String_Ack", 100, func(messages collections.List[rabbit.EventArgs]) bool {
 		for _, args := range messages.ToArray() {
-			C1 += parse.Convert(args.BodyString, 0)
+			var index string
+			snc.Unmarshal([]byte(args.BodyString), &index)
+			C1 += parse.ToInt(index)
 		}
 		return true
 	})
@@ -34,17 +38,19 @@ func TestBatch(t *testing.T) {
 	// 自动ACK
 	consumer.SubscribeBatch("TestBatchStringAutoAck", "Test_Batch_String_AutoAck", 100, func(messages collections.List[rabbit.EventArgs]) {
 		for _, args := range messages.ToArray() {
-			C2 += parse.Convert(args.BodyString, 0)
+			var index string
+			snc.Unmarshal([]byte(args.BodyString), &index)
+			C2 += parse.ToInt(index)
 		}
 	})
 
 	// 生产消息
 	product := container.Resolve[rabbit.IProduct]("Ex3")
-	for i := 1; i < 11; i++ {
-		_ = product.SendString(strconv.Itoa(i))
-	}
-	_ = product.SendStringKey("12", "testKey")
-	time.Sleep(2000 * time.Millisecond)
+	lst := collections.NewListAny("1", "2", "3", "4", "5", "6", "7", "8", "9", "10")
+	product.BatchSendMessage(lst, "")
+	_ = product.SendStringKey("\"12\"", "testKey")
+	flog.Info("消息发送完成，等待1秒")
+	time.Sleep(1000 * time.Millisecond)
 	assert.Equal(t, 67, C1)
 	assert.Equal(t, 67, C2)
 }

@@ -1,6 +1,7 @@
 Rabbit:
-  Ex1: "Server=rabbit:5672,UserName=farseer,Password=farseer,Exchange=Ex1,RoutingKey=,Type=fanout,UseConfirm=false,AutoCreate=true"
-  Ex2: "Server=rabbit:5672,UserName=farseer,Password=farseer,Exchange=Ex2,RoutingKey=,Type=fanout,UseConfirm=false,AutoCreate=true"
+  Ex1: "Server=192.168.1.8:5672,UserName=farseer,Password=farseer,Exchange=Ex1,RoutingKey=,Type=fanout,UseConfirm=false,AutoCreate=true"
+  Ex2: "Server=192.168.1.8:5672,UserName=farseer,Password=farseer,Exchange=Ex2,RoutingKey=,Type=fanout,UseConfirm=false,AutoCreate=true"
+  Ex3: "Server=192.168.1.8:5672,UserName=farseer,Password=farseer,Exchange=Ex3,RoutingKey=,Type=fanout,UseConfirm=true,AutoCreate=true"
 Log:
   LogLevel: "Information"
   Component:
