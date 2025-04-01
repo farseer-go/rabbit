@@ -195,7 +195,7 @@ func (receiver *rabbitProduct) BatchSendMessage(lstMsg collections.ListAny, rout
 	}(rabbitChl)
 
 	var err error
-	ctx, _ := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, _ := context.WithTimeout(context.Background(), 30*time.Second)
 	//defer cancel()
 
 	// 发布消息
@@ -240,7 +240,7 @@ func (receiver *rabbitProduct) BatchSendMessage(lstMsg collections.ListAny, rout
 					flog.Warningf("消息被 Broker 拒绝: DeliveryTag=%d", confirmation.DeliveryTag)
 				}
 			case <-ctx.Done(): // 处理超时
-				flog.Warningf("等待确认超时: 已确认 %d/%d 条消息", confirmedCount, batchSize)
+				return flog.Errorf("批量发送消息时等待确认超时: 已确认 %d/%d 条消息", confirmedCount, batchSize)
 			}
 		}
 	}
