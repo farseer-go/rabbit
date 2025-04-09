@@ -7,7 +7,6 @@ import (
 	"github.com/farseer-go/collections"
 	"github.com/farseer-go/fs"
 	"github.com/farseer-go/fs/asyncLocal"
-	"github.com/farseer-go/fs/color"
 	"github.com/farseer-go/fs/container"
 	"github.com/farseer-go/fs/exception"
 	"github.com/farseer-go/fs/flog"
@@ -211,9 +210,6 @@ func (receiver *rabbitConsumer) SubscribeBatchAckTime(queueName string, routingK
 							}
 						}
 					}).CatchException(func(exp any) {
-						if file, funcName, line := trace.GetCallerInfo(); file != "" {
-							_ = flog.Errorf("%s:%s %s \n", file, color.Blue(line), funcName)
-						}
 						err = flog.Errorf("rabbit：SubscribeBatchAck exception %s:%s", queueName, exp)
 					})
 					if !isSuccess {
