@@ -65,10 +65,11 @@ func (receiver *rabbitConsumer) Subscribe(queueName string, routingKey string, p
 					args := receiver.createEventArgs(page, queueName)
 					exception.Try(func() {
 						consumerHandle(string(page.Body), args)
-					}).CatchException(func(exp any) {
-						err = flog.Errorf("rabbit：Subscribe exception:%s", exp)
 					})
-					container.Resolve[trace.IManager]().Push(entryMqConsumer, err)
+					// .CatchException(func(exp any) {
+					// 	err = flog.Errorf("rabbit：Subscribe %s消费异常: %s", queueName, exp)
+					// })
+					container.Resolve[trace.IManager]().Push(entryMqConsumer, nil)
 					asyncLocal.Release()
 				}
 				// 通道关闭了
@@ -105,9 +106,10 @@ func (receiver *rabbitConsumer) SubscribeAck(queueName string, routingKey string
 								flog.Errorf("rabbit：SubscribeAck %s Ack 异常：%+v %s", queueName, err, string(page.Body))
 							}
 						}
-					}).CatchException(func(exp any) {
-						err = flog.Errorf("rabbit：SubscribeAck %s消费异常: %s", queueName, exp)
 					})
+					// .CatchException(func(exp any) {
+					// 	err = flog.Errorf("rabbit：SubscribeAck %s消费异常: %s", queueName, exp)
+					// })
 					if !isSuccess {
 						// Nack
 						if err = page.Nack(false, true); err != nil {
@@ -158,11 +160,11 @@ func (receiver *rabbitConsumer) SubscribeBatch(queueName string, routingKey stri
 					entryMqConsumer := receiver.manager.traceManager.EntryMqConsumer("", "", receiver.manager.config.Server, queueName, receiver.manager.config.RoutingKey)
 					exception.Try(func() {
 						consumerHandle(lst)
-					}).CatchException(func(exp any) {
-						err = flog.Errorf("rabbit：SubscribeBatch exception:%s", exp)
 					})
-					// 数量大于0，才追踪
-					container.Resolve[trace.IManager]().Push(entryMqConsumer, err)
+					// .CatchException(func(exp any) {
+					// 	err = flog.Errorf("rabbit：SubscribeBatch %s消费异常: %s", queueName, exp)
+					// })
+					container.Resolve[trace.IManager]().Push(entryMqConsumer, nil)
 				}
 				asyncLocal.Release()
 			}
@@ -206,16 +208,17 @@ func (receiver *rabbitConsumer) SubscribeBatchAckTime(queueName string, routingK
 						isSuccess = consumerHandle(lst)
 						if isSuccess {
 							if err = lastPage.Ack(true); err != nil {
-								err = flog.Errorf("rabbit：SubscribeBatchAck failed to Ack %s: %s", queueName, err)
+								err = flog.Errorf("rabbit：SubscribeBatchAckTime %s Ack 异常：%+v", queueName, err)
 							}
 						}
-					}).CatchException(func(exp any) {
-						err = flog.Errorf("rabbit：SubscribeBatchAck exception %s:%s", queueName, exp)
 					})
+					// .CatchException(func(exp any) {
+					// 	err = flog.Errorf("rabbit：SubscribeBatchAck %s消费异常: %s", queueName, exp)
+					// })
 					if !isSuccess {
 						// Nack
 						if err = lastPage.Nack(true, true); err != nil {
-							err = flog.Errorf("rabbit：SubscribeBatchAck failed to Nack %s: %s", queueName, err)
+							err = flog.Errorf("rabbit：SubscribeBatchAckTime %s Nack 异常：%+v", queueName, err)
 						}
 					}
 					// 数量大于0，才追踪
