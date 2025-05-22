@@ -83,13 +83,13 @@ func (receiver *rabbitConsumer) Subscribe(queueName string, routingKey string, p
 }
 
 func (receiver *rabbitConsumer) SubscribeAck(queueName string, routingKey string, prefetchCount int, consumerHandle func(message string, ea EventArgs) bool) {
-	fs.AddInitCallback(fmt.Sprintf("rabbit.SubscribeAck消费，队列：%s，routingKey：%s，预读数量：%d", queueName, routingKey, prefetchCount), func() {
+	fs.AddInitCallback(fmt.Sprintf("rabbit：SubscribeAck消费，队列：%s，routingKey：%s，预读数量：%d", queueName, routingKey, prefetchCount), func() {
 		go func() {
 			for {
 				// 创建一个连接和通道
 				chl, deliveries, err := receiver.createQueueAndBindAndConsume(queueName, routingKey, prefetchCount, false)
 				if err != nil {
-					flog.Errorf("rabbit.SubscribeAck 创建通道时失败，3秒后重试：%s", err.Error())
+					flog.Errorf("rabbit：SubscribeAck 创建通道时失败，3秒后重试：%s", err.Error())
 					// 3秒后重试
 					time.Sleep(3 * time.Second)
 					continue
@@ -102,16 +102,16 @@ func (receiver *rabbitConsumer) SubscribeAck(queueName string, routingKey string
 					exception.Try(func() {
 						if isSuccess = consumerHandle(string(page.Body), args); isSuccess {
 							if err = page.Ack(false); err != nil {
-								_ = flog.Errorf("rabbit：SubscribeAck failed to Ack q=%s: %s %s", queueName, err, string(page.Body))
+								flog.Errorf("rabbit：SubscribeAck %s Ack 异常：%+v %s", queueName, err, string(page.Body))
 							}
 						}
 					}).CatchException(func(exp any) {
-						err = flog.Errorf("rabbit：SubscribeAck exception: q=%s err:%s", queueName, exp)
+						err = flog.Errorf("rabbit：SubscribeAck %s消费异常: %s", queueName, exp)
 					})
 					if !isSuccess {
 						// Nack
 						if err = page.Nack(false, true); err != nil {
-							err = flog.Errorf("rabbit：SubscribeAck failed to Nack %s: q=%s %s", queueName, err, string(page.Body))
+							err = flog.Errorf("rabbit：SubscribeAck %s Nack 异常：%+v %s", queueName, err, string(page.Body))
 						}
 					}
 					container.Resolve[trace.IManager]().Push(entryMqConsumer, err)
