@@ -115,7 +115,7 @@ func (receiver *rabbitProduct) createChannelAndConfirm(batchSize int) rabbitChan
 // 通道使用完后，放回队列中
 func (receiver *rabbitProduct) pushChannel(rabbitChl rabbitChannel) {
 	defer atomic.AddInt32(&receiver.workChannelCount, -1)
-	if rabbitChl.err != nil {
+	if rabbitChl.err != nil || rabbitChl.chl == nil || rabbitChl.chl.IsClosed() {
 		return
 	}
 	receiver.chlQueue <- rabbitChl
