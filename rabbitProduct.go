@@ -67,7 +67,7 @@ func (receiver *rabbitProduct) popChannel() rabbitChannel {
 			}
 		case rabbitChl := <-receiver.chlQueue:
 			// 如果通道是关闭状态，则重新走取出逻辑
-			if rabbitChl.err != nil || rabbitChl.chl.IsClosed() {
+			if rabbitChl.chl == nil || rabbitChl.err != nil || rabbitChl.chl.IsClosed() {
 				flog.Warning(rabbitChl.err.Error())
 				continue
 			}
