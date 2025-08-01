@@ -61,6 +61,8 @@ func (receiver *rabbitConsumer) Subscribe(queueName string, routingKey string, p
 				}
 				// 读取通道的消息
 				for page := range deliveries {
+					// InitContext 初始化同一协程上下文，避免在同一协程中多次初始化
+					asyncLocal.InitContext()
 					entryMqConsumer := receiver.manager.traceManager.EntryMqConsumer(page.CorrelationId, page.AppId, receiver.manager.config.Server, queueName, receiver.manager.config.RoutingKey)
 					args := receiver.createEventArgs(page, queueName)
 					exception.Try(func() {
@@ -97,6 +99,8 @@ func (receiver *rabbitConsumer) SubscribeAck(queueName string, routingKey string
 				}
 
 				for page := range deliveries {
+					// InitContext 初始化同一协程上下文，避免在同一协程中多次初始化
+					asyncLocal.InitContext()
 					entryMqConsumer := receiver.manager.traceManager.EntryMqConsumer(page.CorrelationId, page.AppId, receiver.manager.config.Server, queueName, receiver.manager.config.RoutingKey)
 					args := receiver.createEventArgs(page, queueName)
 					isSuccess := false
@@ -145,6 +149,8 @@ func (receiver *rabbitConsumer) SubscribeBatch(queueName string, routingKey stri
 			var chl *amqp.Channel
 			for {
 				time.Sleep(100 * time.Millisecond)
+				// InitContext 初始化同一协程上下文，避免在同一协程中多次初始化
+				asyncLocal.InitContext()
 				// 创建一个连接和通道
 				var err error
 				if chl == nil || chl.IsClosed() {
@@ -190,6 +196,8 @@ func (receiver *rabbitConsumer) SubscribeBatchAckTime(queueName string, routingK
 			var chl *amqp.Channel
 			for {
 				time.Sleep(sleepTime)
+				// InitContext 初始化同一协程上下文，避免在同一协程中多次初始化
+				asyncLocal.InitContext()
 				// 创建一个连接和通道
 				var err error
 				if chl == nil || chl.IsClosed() {
