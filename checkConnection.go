@@ -6,7 +6,9 @@ import (
 	"time"
 
 	"github.com/farseer-go/fs/configure"
+	"github.com/farseer-go/fs/container"
 	"github.com/farseer-go/fs/core"
+	"github.com/farseer-go/fs/trace"
 )
 
 // 确保实现了IConnectionChecker接口
@@ -17,6 +19,9 @@ type connectionChecker struct{}
 // Check 检查连接字符串是否能成功连接到RabbitMQ
 // 实现IConnectionChecker接口
 func (c *connectionChecker) Check(configString string) (bool, error) {
+	// 取消链路
+	container.Resolve[trace.IManager]().Ignore()
+
 	if configString == "" {
 		return false, fmt.Errorf("连接字符串不能为空")
 	}
