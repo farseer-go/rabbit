@@ -26,7 +26,7 @@ rabbit是比较流行的MQ中间件之一。
 - `容器化操作`：使用IOC，我们可以很方便就能取到对应的实现。
 
 ## 配置
-_./farseer.yaml_
+_./config.yaml_
 ```yaml
 Rabbit:
   Ex1: "Server=rabbit:5672,UserName=farseer,Password=farseer,Exchange=Ex1,RoutingKey=,Type=fanout,UseConfirm=false,AutoCreate=true"
@@ -57,7 +57,7 @@ product.SendString("aaaa")
 ```
 通过`container.Resolve`容器取出`rabbit.IProduct`接口的实现。
 
-参数值`Ex1`，是在`./farseer.yaml`中设置的`ExchangeName`，意味着使用这个配置来发消息。
+参数值`Ex1`，是在`./config.yaml`中设置的`ExchangeName`，意味着使用这个配置来发消息。
 
 如果配置了`AutoCreateExchange=true`，则如果交换器不存在时，会自动创建。
 
@@ -98,7 +98,7 @@ consumer.Subscribe("Q2", "", func(message string, ea rabbit.EventArgs) {
 ```
 通过`container.Resolve`容器取出`rabbit.IConsumer`接口的实现。
 
-参数值`Ex1`，是在`./farseer.yaml`中设置的`ExchangeName`，意味着使用这个配置来消费消息。
+参数值`Ex1`，是在`./config.yaml`中设置的`ExchangeName`，意味着使用这个配置来消费消息。
 
 `consumer.Subscribe`函数将订阅rabbit的queue。
 

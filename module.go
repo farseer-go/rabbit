@@ -24,7 +24,7 @@ func (module Module) Initialize() {
 	for key, val := range nodes {
 		configString := val.(string)
 		if configString == "" {
-			panic("[farseer.yaml]Rabbit." + key + "，配置不正确")
+			panic("[config.yaml]Rabbit." + key + "，配置不正确")
 		}
 		// 注册内部上下文
 		Register(key, configString)
