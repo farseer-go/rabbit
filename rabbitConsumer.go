@@ -2,11 +2,13 @@ package rabbit
 
 import (
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/farseer-go/collections"
 	"github.com/farseer-go/fs"
 	"github.com/farseer-go/fs/asyncLocal"
+	"github.com/farseer-go/fs/color"
 	"github.com/farseer-go/fs/container"
 	"github.com/farseer-go/fs/exception"
 	"github.com/farseer-go/fs/flog"
@@ -69,7 +71,11 @@ func (receiver *rabbitConsumer) Subscribe(queueName string, routingKey string, p
 						consumerHandle(string(page.Body), args)
 					}).CatchException(func(exp any) {
 						if traceContext.IsIgnore() { // 如果忽略了链路,则要在这里打印错误日志
-							flog.Errorf("rabbit %s,%s 异常: %v", queueName, routingKey, exp)
+							lstLogs := []string{fmt.Sprintf("rabbit %s,%s 异常: %v", queueName, routingKey, exp)}
+							for index, exceptionStackDetail := range trace.GetCallerInfo() {
+								lstLogs = append(lstLogs, fmt.Sprintf("\t%d、%s:%s %s", index+1, exceptionStackDetail.ExceptionCallFile, color.Yellow(exceptionStackDetail.ExceptionCallLine), color.Red(exceptionStackDetail.ExceptionCallFuncName)))
+							}
+							flog.Error(strings.Join(lstLogs, "\n") + "\n")
 						}
 					})
 					// .CatchException(func(exp any) {
@@ -116,7 +122,11 @@ func (receiver *rabbitConsumer) SubscribeAck(queueName string, routingKey string
 						}
 					}).CatchException(func(exp any) {
 						if traceContext.IsIgnore() { // 如果忽略了链路,则要在这里打印错误日志
-							flog.Errorf("rabbit %s,%s 异常: %v", queueName, routingKey, exp)
+							lstLogs := []string{fmt.Sprintf("rabbit %s,%s 异常: %v", queueName, routingKey, exp)}
+							for index, exceptionStackDetail := range trace.GetCallerInfo() {
+								lstLogs = append(lstLogs, fmt.Sprintf("\t%d、%s:%s %s", index+1, exceptionStackDetail.ExceptionCallFile, color.Yellow(exceptionStackDetail.ExceptionCallLine), color.Red(exceptionStackDetail.ExceptionCallFuncName)))
+							}
+							flog.Error(strings.Join(lstLogs, "\n") + "\n")
 						}
 					})
 					// .CatchException(func(exp any) {
@@ -176,7 +186,11 @@ func (receiver *rabbitConsumer) SubscribeBatch(queueName string, routingKey stri
 						consumerHandle(lst)
 					}).CatchException(func(exp any) {
 						if traceContext.IsIgnore() { // 如果忽略了链路,则要在这里打印错误日志
-							flog.Errorf("rabbit %s,%s 异常: %v", queueName, routingKey, exp)
+							lstLogs := []string{fmt.Sprintf("rabbit %s,%s 异常: %v", queueName, routingKey, exp)}
+							for index, exceptionStackDetail := range trace.GetCallerInfo() {
+								lstLogs = append(lstLogs, fmt.Sprintf("\t%d、%s:%s %s", index+1, exceptionStackDetail.ExceptionCallFile, color.Yellow(exceptionStackDetail.ExceptionCallLine), color.Red(exceptionStackDetail.ExceptionCallFuncName)))
+							}
+							flog.Error(strings.Join(lstLogs, "\n") + "\n")
 						}
 					})
 					// .CatchException(func(exp any) {
@@ -233,7 +247,11 @@ func (receiver *rabbitConsumer) SubscribeBatchAckTime(queueName string, routingK
 						}
 					}).CatchException(func(exp any) {
 						if traceContext.IsIgnore() { // 如果忽略了链路,则要在这里打印错误日志
-							flog.Errorf("rabbit %s,%s 异常: %v", queueName, routingKey, exp)
+							lstLogs := []string{fmt.Sprintf("rabbit %s,%s 异常: %v", queueName, routingKey, exp)}
+							for index, exceptionStackDetail := range trace.GetCallerInfo() {
+								lstLogs = append(lstLogs, fmt.Sprintf("\t%d、%s:%s %s", index+1, exceptionStackDetail.ExceptionCallFile, color.Yellow(exceptionStackDetail.ExceptionCallLine), color.Red(exceptionStackDetail.ExceptionCallFuncName)))
+							}
+							flog.Error(strings.Join(lstLogs, "\n") + "\n")
 						}
 					})
 
