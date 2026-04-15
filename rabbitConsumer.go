@@ -63,15 +63,19 @@ func (receiver *rabbitConsumer) Subscribe(queueName string, routingKey string, p
 				for page := range deliveries {
 					// InitContext 初始化同一协程上下文，避免在同一协程中多次初始化
 					asyncLocal.InitContext()
-					entryMqConsumer := receiver.manager.traceManager.EntryMqConsumer(page.CorrelationId, page.AppId, receiver.manager.config.Server, queueName, receiver.manager.config.RoutingKey)
+					traceContext := receiver.manager.traceManager.EntryMqConsumer(page.CorrelationId, page.AppId, receiver.manager.config.Server, queueName, receiver.manager.config.RoutingKey)
 					args := receiver.createEventArgs(page, queueName)
 					exception.Try(func() {
 						consumerHandle(string(page.Body), args)
+					}).CatchException(func(exp any) {
+						if traceContext.IsIgnore() { // 如果忽略了链路,则要在这里打印错误日志
+							flog.Errorf("rabbit %s,%s 异常: %v", queueName, routingKey, exp)
+						}
 					})
 					// .CatchException(func(exp any) {
 					// 	err = flog.Errorf("rabbit：Subscribe %s消费异常: %s", queueName, exp)
 					// })
-					container.Resolve[trace.IManager]().Push(entryMqConsumer, nil)
+					container.Resolve[trace.IManager]().Push(traceContext, nil)
 					asyncLocal.Release()
 				}
 				// 通道关闭了
@@ -101,7 +105,7 @@ func (receiver *rabbitConsumer) SubscribeAck(queueName string, routingKey string
 				for page := range deliveries {
 					// InitContext 初始化同一协程上下文，避免在同一协程中多次初始化
 					asyncLocal.InitContext()
-					entryMqConsumer := receiver.manager.traceManager.EntryMqConsumer(page.CorrelationId, page.AppId, receiver.manager.config.Server, queueName, receiver.manager.config.RoutingKey)
+					traceContext := receiver.manager.traceManager.EntryMqConsumer(page.CorrelationId, page.AppId, receiver.manager.config.Server, queueName, receiver.manager.config.RoutingKey)
 					args := receiver.createEventArgs(page, queueName)
 					isSuccess := false
 					exception.Try(func() {
@@ -109,6 +113,10 @@ func (receiver *rabbitConsumer) SubscribeAck(queueName string, routingKey string
 							if err = page.Ack(false); err != nil {
 								flog.Errorf("rabbit：SubscribeAck %s Ack 异常：%+v %s", queueName, err, string(page.Body))
 							}
+						}
+					}).CatchException(func(exp any) {
+						if traceContext.IsIgnore() { // 如果忽略了链路,则要在这里打印错误日志
+							flog.Errorf("rabbit %s,%s 异常: %v", queueName, routingKey, exp)
 						}
 					})
 					// .CatchException(func(exp any) {
@@ -120,7 +128,7 @@ func (receiver *rabbitConsumer) SubscribeAck(queueName string, routingKey string
 							err = flog.Errorf("rabbit：SubscribeAck %s Nack 异常：%+v %s", queueName, err, string(page.Body))
 						}
 					}
-					container.Resolve[trace.IManager]().Push(entryMqConsumer, err)
+					container.Resolve[trace.IManager]().Push(traceContext, err)
 					asyncLocal.Release()
 				}
 
@@ -163,14 +171,18 @@ func (receiver *rabbitConsumer) SubscribeBatch(queueName string, routingKey stri
 				}
 
 				if lst, _ := receiver.pullBatch(queueName, true, pullCount, chl); lst.Count() > 0 {
-					entryMqConsumer := receiver.manager.traceManager.EntryMqConsumer("", "", receiver.manager.config.Server, queueName, receiver.manager.config.RoutingKey)
+					traceContext := receiver.manager.traceManager.EntryMqConsumer("", "", receiver.manager.config.Server, queueName, receiver.manager.config.RoutingKey)
 					exception.Try(func() {
 						consumerHandle(lst)
+					}).CatchException(func(exp any) {
+						if traceContext.IsIgnore() { // 如果忽略了链路,则要在这里打印错误日志
+							flog.Errorf("rabbit %s,%s 异常: %v", queueName, routingKey, exp)
+						}
 					})
 					// .CatchException(func(exp any) {
 					// 	err = flog.Errorf("rabbit：SubscribeBatch %s消费异常: %s", queueName, exp)
 					// })
-					container.Resolve[trace.IManager]().Push(entryMqConsumer, nil)
+					container.Resolve[trace.IManager]().Push(traceContext, nil)
 				}
 				asyncLocal.Release()
 			}
@@ -210,7 +222,7 @@ func (receiver *rabbitConsumer) SubscribeBatchAckTime(queueName string, routingK
 				}
 
 				if lst, lastPage := receiver.pullBatch(queueName, false, pullCount, chl); lst.Count() > 0 {
-					entryMqConsumer := receiver.manager.traceManager.EntryMqConsumer("", "", receiver.manager.config.Server, queueName, receiver.manager.config.RoutingKey)
+					traceContext := receiver.manager.traceManager.EntryMqConsumer("", "", receiver.manager.config.Server, queueName, receiver.manager.config.RoutingKey)
 					isSuccess := false
 					exception.Try(func() {
 						isSuccess = consumerHandle(lst)
@@ -219,7 +231,12 @@ func (receiver *rabbitConsumer) SubscribeBatchAckTime(queueName string, routingK
 								err = flog.Errorf("rabbit：SubscribeBatchAckTime %s Ack 异常：%+v", queueName, err)
 							}
 						}
+					}).CatchException(func(exp any) {
+						if traceContext.IsIgnore() { // 如果忽略了链路,则要在这里打印错误日志
+							flog.Errorf("rabbit %s,%s 异常: %v", queueName, routingKey, exp)
+						}
 					})
+
 					// .CatchException(func(exp any) {
 					// 	err = flog.Errorf("rabbit：SubscribeBatchAck %s消费异常: %s", queueName, exp)
 					// })
@@ -230,7 +247,7 @@ func (receiver *rabbitConsumer) SubscribeBatchAckTime(queueName string, routingK
 						}
 					}
 					// 数量大于0，才追踪
-					container.Resolve[trace.IManager]().Push(entryMqConsumer, err)
+					container.Resolve[trace.IManager]().Push(traceContext, err)
 				}
 				asyncLocal.Release()
 			}
