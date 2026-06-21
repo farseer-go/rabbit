@@ -9,7 +9,6 @@ import (
 	"github.com/farseer-go/fs"
 	"github.com/farseer-go/fs/asyncLocal"
 	"github.com/farseer-go/fs/color"
-	"github.com/farseer-go/fs/container"
 	"github.com/farseer-go/fs/exception"
 	"github.com/farseer-go/fs/flog"
 	"github.com/farseer-go/fs/trace"
@@ -81,7 +80,7 @@ func (receiver *rabbitConsumer) Subscribe(queueName string, routingKey string, p
 					// .CatchException(func(exp any) {
 					// 	err = flog.Errorf("rabbit：Subscribe %s消费异常: %s", queueName, exp)
 					// })
-					container.Resolve[trace.IManager]().Push(traceContext, nil)
+					trace.Manager().Push(traceContext, nil)
 					asyncLocal.Release()
 				}
 				// 通道关闭了
@@ -138,7 +137,7 @@ func (receiver *rabbitConsumer) SubscribeAck(queueName string, routingKey string
 							err = flog.Errorf("rabbit：SubscribeAck %s Nack 异常：%+v %s", queueName, err, string(page.Body))
 						}
 					}
-					container.Resolve[trace.IManager]().Push(traceContext, err)
+					trace.Manager().Push(traceContext, err)
 					asyncLocal.Release()
 				}
 
@@ -174,7 +173,7 @@ func (receiver *rabbitConsumer) SubscribeBatch(queueName string, routingKey stri
 				if chl == nil || chl.IsClosed() {
 					entryMqConsumer := receiver.manager.traceManager.EntryMqConsumer("", "", receiver.manager.config.Server, queueName, receiver.manager.config.RoutingKey)
 					if chl, err = receiver.manager.CreateChannel(); err != nil {
-						container.Resolve[trace.IManager]().Push(entryMqConsumer, err)
+						trace.Manager().Push(entryMqConsumer, err)
 						_ = flog.Error(err)
 						continue
 					}
@@ -196,7 +195,7 @@ func (receiver *rabbitConsumer) SubscribeBatch(queueName string, routingKey stri
 					// .CatchException(func(exp any) {
 					// 	err = flog.Errorf("rabbit：SubscribeBatch %s消费异常: %s", queueName, exp)
 					// })
-					container.Resolve[trace.IManager]().Push(traceContext, nil)
+					trace.Manager().Push(traceContext, nil)
 				}
 				asyncLocal.Release()
 			}
@@ -229,7 +228,7 @@ func (receiver *rabbitConsumer) SubscribeBatchAckTime(queueName string, routingK
 				if chl == nil || chl.IsClosed() {
 					entryMqConsumer := receiver.manager.traceManager.EntryMqConsumer("", "", receiver.manager.config.Server, queueName, receiver.manager.config.RoutingKey)
 					if chl, err = receiver.manager.CreateChannel(); err != nil {
-						container.Resolve[trace.IManager]().Push(entryMqConsumer, err)
+						trace.Manager().Push(entryMqConsumer, err)
 						_ = flog.Error(err)
 						continue
 					}
@@ -265,7 +264,7 @@ func (receiver *rabbitConsumer) SubscribeBatchAckTime(queueName string, routingK
 						}
 					}
 					// 数量大于0，才追踪
-					container.Resolve[trace.IManager]().Push(traceContext, err)
+					trace.Manager().Push(traceContext, err)
 				}
 				asyncLocal.Release()
 			}

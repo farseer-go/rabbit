@@ -2,10 +2,10 @@ package rabbit
 
 import (
 	"fmt"
-	"github.com/farseer-go/fs/container"
+	"sync"
+
 	"github.com/farseer-go/fs/trace"
 	amqp "github.com/rabbitmq/amqp091-go"
-	"sync"
 )
 
 // rabbit客户端管理，可以对rabbit做交换器创建、队列创建，以及绑定操作。
@@ -21,7 +21,7 @@ func newManager(config rabbitConfig) *rabbitManager {
 	return &rabbitManager{
 		config:       config,
 		lock:         &sync.Mutex{},
-		traceManager: container.Resolve[trace.IManager](),
+		traceManager: trace.Manager(),
 	}
 }
 
